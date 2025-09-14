@@ -1,0 +1,43 @@
+{
+	"langrev": "1",
+	"warnings": [ "no-unused" ],
+	"dependency-search-paths": [ "lib" ],
+	"dependencies": [ ],
+	"authors": [ "John Doe <john.doe@example.com>" ],
+	"version": "0.1.0",
+	"sources": [ "src/**" ],
+	"test-sources": [ "test/**" ],
+	// C sources if the project also compiles C sources
+	// relative to the project file.
+	// "c-sources": [ "csource/**" ],
+	// Include directories for C sources relative to the project file.
+	// "c-include-dirs": [ "csource/include" ],
+	// Output location, relative to project file.
+	"output": "build",
+	// Architecture and OS target.
+	// You can use 'c3c --list-targets' to list all valid targets.
+	"target": "elf-riscv32",
+	"linked-libraries": [ ":libliblbos.rlib" ],
+	"linker-search-paths": [ "." ],
+	// Targets.
+	"targets": {
+		"example_c3": {
+			// Executable or library.
+			"type": "executable",
+		},
+		"other": {
+			"type": "prepare",
+			"exec": [ "../makeddi ../build/example_c3 ../build/TEST.DDI" ],
+		},
+	},
+	"cpu": "generic",
+	// Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
+	"opt": "O0",
+	// "use-stdlib": true,
+	"use-stdlib": false,
+	"link-libc": false,
+	"no-entry": true,
+	"strip-unused": false,
+	"panicfn": "example_c3::panic",
+	"link-args": ["-T", "linker.ld", "--emit-relocs", "-n" ],
+}
