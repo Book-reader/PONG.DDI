@@ -25,19 +25,23 @@
 			// Executable or library.
 			"type": "executable",
 		},
-		"other": {
+		"setup": {
 			"type": "prepare",
-			"exec": [ "../makeddi ../build/example_c3 ../build/TEST.DDI" ],
+			"script-dir": ".",
+			"exec": [ "./makeddi ./build/example_c3 ./build/TEST.DDI", "sudo ./copy_to_fs.sh /dev/loop0" ],
 		},
 	},
 	"cpu": "generic",
 	// Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
 	"opt": "O0",
-	// "use-stdlib": true,
-	"use-stdlib": false,
+	"use-stdlib": true,
+	// "use-stdlib": false,
 	"link-libc": false,
 	"no-entry": true,
-	"strip-unused": false,
+	"strip-unused": true,
+	"single-module": true,
+	"emit-stdlib": false,
 	"panicfn": "example_c3::panic",
-	"link-args": ["-T", "linker.ld", "--emit-relocs", "-n" ],
+	"link-args": ["-T", "linker.ld", /*"--emit-relocs", */"-n"],
+	"reloc": "PIE",
 }
