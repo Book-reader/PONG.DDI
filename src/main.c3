@@ -13,7 +13,7 @@ fn isz _start() @extern("_start") @nostrip
 
 	enable_fb();
 	FrameBuffer fb = get_fb();
-	fb.fill_rect(10, 10, 50, 50, RED, flush: true);
+	fb.draw_rect(0, 0, 50, 50, RED, outline_width: 3, flush: true);
 	while (true);
 	return 0;
 }
@@ -69,18 +69,19 @@ enum Colour : const _Colour
 *>*/
 fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
 {
-	for (usz i = y; i < y + height; i++)
+	for (usz ys = y; ys < y + height; ys++)
 	{
-		((Colour*)self)[i * FB_WIDTH + x:width] = col;
+		((Colour*)self)[ys * FB_WIDTH + x:width] = col;
 	}
 	if (flush) self.flush(x, y, width, height);
 }
 fn void FrameBuffer.draw_rect(self, usz x, usz y, usz width, usz height, Colour col, usz outline_width = 1, bool flush = false)
 {
-	// for (usz xc = x; xc < x + width; xc ++)
-	// {
-	//((Colour*)self)[y - outline_width / 2]
-	// }
+	// TODO: I could make this a lot more efficient
+	self.fill_rect(x, y, width, outline_width, col, flush: flush) @inline;
+	self.fill_rect(x, y + height, width, outline_width, col, flush: flush) @inline;
+	self.fill_rect(x, y, outline_width, height + outline_width, col, flush: flush) @inline;
+	self.fill_rect(x + height, y, outline_width, height + outline_width, col, flush: flush) @inline;
 }
 /*<*
  @require x + width <= FB_WIDTH
