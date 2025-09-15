@@ -46,4 +46,6 @@
 	// "reloc": "PIE",
 	"reloc": "none",
 	"memory-env": "tiny",
+	// There is so little memory it OOMs with debug info lmao
+	"debug-info": "none",
 }
