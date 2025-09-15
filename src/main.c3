@@ -10,32 +10,12 @@ fn isz _start() @extern("_start") @nostrip
 	// allocator::thread_allocator = &VORE_ALLOCATOR;
 	// allocator::temp_base_allocator = &VORE_ALLOCATOR;
 	println("Hello from C3 a!");
+
+	enable_fb();
+	FrameBuffer fb = get_fb();
+	fb.draw(0, 0, 50, 50, RED, flush: true);
+	while (true);
 	return 0;
-}
-
-enum Syscall : const usz
-{
-	WRITE_TERMINAL = 6,
-	ALLOC_BLOCKS = 7,
-	FREE_BLOCKS = 8,
-}
-
-fn usz syscall(Syscall syscall, usz a1 = 0, usz a2 = 0, usz a3 = 0, usz a4 = 0, usz a5 = 0, usz a6 = 0) @naked
-{
-	asm
-	(`
-		ecall;
-		ret;
-	`);
-}
-fn void write_terminal(String str) => syscall(WRITE_TERMINAL, (usz)str.ptr, str.len);
-fn void* alloc_blocks(usz num_blocks) => (void*)syscall(ALLOC_BLOCKS, num_blocks);
-fn void free_blocks(void* block, usz num_blocks) => syscall(FREE_BLOCKS, (usz)block, num_blocks);
-
-fn void println(String str)
-{
-	write_terminal(str);
-	write_terminal("\n");
 }
 
 alias PanicFn = fn void(String, String, String, uint);
@@ -50,6 +30,84 @@ PanicFn panic = fn void (message, file, function, line)
 	write_terminal("\"");
 	while (true);
 };
+
+
+enum Syscall : const usz
+{
+	WRITE_TERMINAL = 6,
+	ALLOC_BLOCKS = 7,
+	FREE_BLOCKS = 8,
+	DISABLE_FB_CONSOLE = 15,
+	ENABLE_FB_CONSOLE = 16,
+	FB_POINTER = 17,
+	FLUSH_FB = 18,
+}
+
+const FB_WIDTH = 320;
+const FB_HEIGHT = 240;
+
+typedef FrameBuffer = void*;
+struct _Colour @packed
+{
+	// Will be RGB888 on the actual hardware
+	char a;
+	char r;
+	char g;
+	char b;
+}
+enum Colour : const _Colour
+{
+	WHITE = {255, 255, 255, 255},
+	BLACK = {255, 0, 0, 0},
+	RED = {255, 255, 0, 0},
+	GREEN = {255, 0, 255, 0},
+	BLUE = {255, 0, 0, 255},
+}
+/*<*
+ @require x + width <= FB_WIDTH
+ @require y + height <= FB_HEIGHT
+*>*/
+fn void FrameBuffer.draw(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
+{
+	for (usz i = y; i < y + height; i++)
+	{
+		(/*(char[4]*)*/(Colour*)self)[i * FB_WIDTH:width] = col;
+	}
+	if (flush) self.flush(x, y, width, height);
+}
+/*<*
+ @require x + width <= FB_WIDTH
+ @require y + height <= FB_HEIGHT
+*>*/
+fn void FrameBuffer.flush(self, usz x, usz y, usz width, usz height) => flush_fb_rect(x, y, width, height);
+
+fn void write_terminal(String str) => syscall(WRITE_TERMINAL, (usz)str.ptr, str.len);
+fn void* alloc_blocks(usz num_blocks) => (void*)syscall(ALLOC_BLOCKS, num_blocks);
+fn void free_blocks(void* block, usz num_blocks) => syscall(FREE_BLOCKS, (usz)block, num_blocks);
+fn void disable_fb() => syscall(DISABLE_FB_CONSOLE);
+fn void enable_fb() => syscall(ENABLE_FB_CONSOLE);
+<*
+ @ensure (void*)return != null : "Failed to get FrameBuffer pointer"
+*>
+fn FrameBuffer get_fb() => (FrameBuffer)syscall(FB_POINTER);
+fn void flush_fb_rect(usz x, usz y, usz w, usz h) => syscall(FLUSH_FB, x, y, w, h);
+
+fn void println(String str)
+{
+	write_terminal(str);
+	write_terminal("\n");
+}
+
+
+fn usz syscall(Syscall syscall, usz a1 = 0, usz a2 = 0, usz a3 = 0, usz a4 = 0, usz a5 = 0, usz a6 = 0) @naked
+{
+	asm
+	(`
+		ecall;
+		ret;
+	`);
+}
+
 /*
 const VoreAllocator VORE_ALLOCATOR = {};
 struct VoreAllocator (Allocator)
