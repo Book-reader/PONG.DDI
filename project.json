@@ -17,8 +17,8 @@
 	// Architecture and OS target.
 	// You can use 'c3c --list-targets' to list all valid targets.
 	"target": "elf-riscv32",
-	"linked-libraries": [ ":libliblbos.rlib" ],
-	"linker-search-paths": [ "." ],
+	// "linked-libraries": [ ":libliblbos.rlib" ],
+	// "linker-search-paths": [ "." ],
 	// Targets.
 	"targets": {
 		"example_c3": {
@@ -31,17 +31,19 @@
 			"exec": [ "./makeddi ./build/example_c3 ./build/TEST.DDI", "sudo ./copy_to_fs.sh /dev/loop0" ],
 		},
 	},
-	"cpu": "generic",
+	"cpu": "rvi20u32_m",
 	// Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
 	"opt": "O0",
-	"use-stdlib": true,
-	// "use-stdlib": false,
+	// "use-stdlib": true,
+	"use-stdlib": false,
 	"link-libc": false,
 	"no-entry": true,
-	"strip-unused": true,
+	// "strip-unused": false,
 	"single-module": true,
 	"emit-stdlib": false,
 	"panicfn": "example_c3::panic",
-	"link-args": ["-T", "linker.ld", /*"--emit-relocs", */"-n"],
-	"reloc": "PIE",
+	"link-args": ["-T", "linker.ld", "--emit-relocs", "-n"],
+	// "reloc": "PIE",
+	"reloc": "none",
+	"memory-env": "tiny",
 }

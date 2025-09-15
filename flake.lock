@@ -8,17 +8,14 @@
         ]
       },
       "locked": {
-        "lastModified": 1757782293,
-        "narHash": "sha256-Rp0Jv0SZmyBpdvQGvPJZNHJ+mr2EjnIi8Ebxan0uCe8=",
-        "owner": "c3lang",
-        "repo": "c3c",
-        "rev": "2e99ae5ab98547dd202affc56c50096ca259d646",
-        "type": "github"
+        "lastModified": 1757909377,
+        "narHash": "sha256-wM7pL7dnDpJF3w1UA5Hx7YnUV7CLbyhCSBCNkdew4O4=",
+        "path": "/home/user/code/c3c",
+        "type": "path"
       },
       "original": {
-        "owner": "c3lang",
-        "repo": "c3c",
-        "type": "github"
+        "path": "/home/user/code/c3c",
+        "type": "path"
       }
     },
     "flake-utils": {
@@ -41,16 +38,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1751211869,
-        "narHash": "sha256-1Cu92i1KSPbhPCKxoiVG5qnoRiKTgR5CcGSRyLpOd7Y=",
+        "lastModified": 1757745802,
+        "narHash": "sha256-hLEO2TPj55KcUFUU1vgtHE9UEIOjRcH/4QbmfHNF820=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b43c397f6c213918d6cfe6e3550abfe79b5d1c51",
+        "rev": "c23193b943c6c689d70ee98ce3128239ed9e32d1",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-25.05",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }

@@ -1,13 +1,15 @@
 module example_c3;
-import std::core::mem::allocator @public;
-import std::math::nolibc;
+// import std::core::mem::allocator @public;
+// import std::math::nolibc;
 
+int x = 6;
+// fn isz _start() @extern("main") => main();
 fn isz _start() @extern("_start") @nostrip
 {
-	// This errors because it tries to print to address 0x4 for some reason
-	/*allocator::thread_allocator = &VORE_ALLOCATOR;
-	allocator::temp_base_allocator = &VORE_ALLOCATOR;*/
-	println("Hello from C3!");
+	// This doesn't work because thread_allocator is tlocal
+	// allocator::thread_allocator = &VORE_ALLOCATOR;
+	// allocator::temp_base_allocator = &VORE_ALLOCATOR;
+	println("Hello from C3 a!");
 	return 0;
 }
 
@@ -48,7 +50,7 @@ PanicFn panic = fn void (message, file, function, line)
 	write_terminal("\"");
 	while (true);
 };
-
+/*
 const VoreAllocator VORE_ALLOCATOR = {};
 struct VoreAllocator (Allocator)
 {
