@@ -13,7 +13,7 @@ fn isz _start() @extern("_start") @nostrip
 
 	enable_fb();
 	FrameBuffer fb = get_fb();
-	fb.draw(0, 0, 50, 50, RED, flush: true);
+	fb.fill_rect(10, 10, 50, 50, RED, flush: true);
 	while (true);
 	return 0;
 }
@@ -67,13 +67,20 @@ enum Colour : const _Colour
  @require x + width <= FB_WIDTH
  @require y + height <= FB_HEIGHT
 *>*/
-fn void FrameBuffer.draw(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
+fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
 {
 	for (usz i = y; i < y + height; i++)
 	{
-		(/*(char[4]*)*/(Colour*)self)[i * FB_WIDTH:width] = col;
+		((Colour*)self)[i * FB_WIDTH + x:width] = col;
 	}
 	if (flush) self.flush(x, y, width, height);
+}
+fn void FrameBuffer.draw_rect(self, usz x, usz y, usz width, usz height, Colour col, usz outline_width = 1, bool flush = false)
+{
+	// for (usz xc = x; xc < x + width; xc ++)
+	// {
+	//((Colour*)self)[y - outline_width / 2]
+	// }
 }
 /*<*
  @require x + width <= FB_WIDTH
