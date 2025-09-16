@@ -12,9 +12,9 @@ fn isz _start() @extern("_start") @nostrip
 	FrameBuffer fb = get_fb();
 	KeyState keys;
 	fb.reset();
-	println("Pong!");
-	println("use arrow keys to move up and down");
-	println("\npress space to continue...");
+	// println("Pong!");
+	// println("use arrow keys to move up and down");
+	// println("\npress space to continue...");
 	do
 	{
 		keys.update();
@@ -30,8 +30,8 @@ fn isz _start() @extern("_start") @nostrip
 	Rect player = {0, 0, PADDLE_WIDTH, PADDLE_HEIGHT};
 	Rect bot = {0, 0, PADDLE_WIDTH, PADDLE_HEIGHT};
 	Rect ball = {0, 0, BALL_SIZE, BALL_SIZE};
-	bool ball_horizontal_dir = false; // left
-	bool ball_vertical_dir = true; // down (I should probably have a better system than this)
+	HorizonalDirection ball_horizontal_dir = LEFT;
+	VerticalDirection ball_vertical_dir = DOWN;
 
 	fb.clear(BG_COLOUR);
 	player.update(fb, PLAYER_COL, PADDLE_XOFF, PADDLE_START_Y);
@@ -45,17 +45,17 @@ fn isz _start() @extern("_start") @nostrip
 
 		ushort ball_x;
 		ushort ball_y;
-		if (ball_vertical_dir)
+		if (ball_vertical_dir == DOWN)
 		{
 			ball_y = min(ball.y, SCREEN_HEIGHT - BALL_SPEED - BALL_SIZE) + BALL_SPEED;
-			if (ball_y + BALL_SIZE == SCREEN_HEIGHT) ball_vertical_dir = false;
+			if (ball_y + BALL_SIZE == SCREEN_HEIGHT) ball_vertical_dir = UP;
 		}
 		else
 		{
 			ball_y = max(ball.y, BALL_SPEED) - BALL_SPEED;
-			if (ball_y == 0) ball_vertical_dir = true;
+			if (ball_y == 0) ball_vertical_dir = DOWN;
 		}
-		if (ball_horizontal_dir)
+		if (ball_horizontal_dir == RIGHT)
 		{
 			ball_x = min(ball.x, SCREEN_WIDTH - BALL_SPEED - BALL_SIZE) + BALL_SPEED;
 			if (ball_x + BALL_SIZE == SCREEN_WIDTH)
@@ -63,7 +63,7 @@ fn isz _start() @extern("_start") @nostrip
 				// ball.update(fb, BALL_COL, SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2);
 				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
 				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
-				ball_horizontal_dir = false;
+				ball_horizontal_dir = LEFT;
 			}
 		}
 		else
@@ -73,22 +73,57 @@ fn isz _start() @extern("_start") @nostrip
 			{
 				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
 				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
-				ball_horizontal_dir = true;
+				ball_horizontal_dir = RIGHT;
 			}
 		}
 
+		// TODO: update pos here, then redraw below the collision detection so it cannot visually overlap the other object
 		ball.update(fb, BALL_COL, ball_x, ball_y);
-		if (ball.intersects(player) || ball.intersects(bot))
+		foreach (obj : (Rect[]){player, bot})
 		{
-			ball_horizontal_dir = !ball_horizontal_dir;
-			// ball_vertical_dir = !ball_vertical_dir;
+			Intersection in = ball.intersects(obj);
+			switch (in)
+			{
+				// TODO: double check all these changes to ball_x & ball_y
+				case LEFT:
+					ball_horizontal_dir = RIGHT;
+					ball_x = obj.x + obj.width + 1;
+				case RIGHT:
+					ball_horizontal_dir = LEFT;
+					ball_x = obj.x - BALL_SIZE - 1;
+				case TOP:
+					ball_vertical_dir = DOWN;
+					ball_y = obj.y + obj.height + 1;
+				case BOTTOM:
+					ball_vertical_dir = UP;
+					ball_y = obj.y - BALL_SIZE - 1;
+				case ALL:
+					if (ball_horizontal_dir == LEFT)
+					{
+						ball_horizontal_dir = RIGHT;
+						ball_x = obj.x + obj.width + 1;
+					}
+					else
+					{
+						ball_horizontal_dir = LEFT;
+						ball_x = obj.x - 1;
+					}
+				case NONE:
+					continue;
+			}
+			break;
 		}
+		ball.update(fb, BALL_COL, ball_x, ball_y);
 		// TODO: a better way to delay
-		const DELAY = 5000000; // 10000000;
+		// const DELAY = 5000000;
+		const DELAY = 10000000;
 		for (usz i = 0; i < DELAY; $$volatile_store(&i, i + 1)) asm("nop");
 	}
 	return 0;
 }
+
+enum HorizonalDirection : const char {LEFT, RIGHT}
+enum VerticalDirection : const char {UP, DOWN}
 
 const BALL_SIZE = 6; // Probably should be divisible by 2
 const BALL_SPEED = 5;
@@ -96,7 +131,7 @@ const BALL_SPEED = 5;
 const PADDLE_SPEED = 7;
 const PADDLE_XOFF = 3;
 const PADDLE_START_Y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-const PADDLE_WIDTH = 10;
+const PADDLE_WIDTH = 80;
 const PADDLE_HEIGHT = 50;
 const Colour BG_COLOUR = {255, 200, 200, 200};
 
@@ -122,12 +157,55 @@ fn void Rect.update(&self, FrameBuffer fb, Colour col, ushort new_x, ushort new_
 	}
 }
 
-fn bool Rect.intersects(&self, Rect other)
+enum Intersection : char
 {
-	return  (self.x + self.width >= other.x) &&
-			(self.x <= other.x + other.width) &&
-			(self.y + self.height >= other.y) &&
-			(self.y <= other.y + other.height);
+	NONE,
+	TOP,
+	BOTTOM,
+	LEFT,
+	RIGHT,
+	ALL,
+}
+
+// The intersection it returns is which side of self intersects with other
+fn Intersection Rect.intersects(self, Rect other)
+{
+	bool bottom_below_top = self.y + self.height >= other.y;
+	bool top_above_bottom = self.y <= other.y + other.height;
+	bool right_greater_left = self.x + self.width >= other.x;
+	bool left_lesser_right = self.x <= other.x + other.width;
+
+	bool bottom_below_bottom = self.y + self.height >= other.y + other.height;
+	bool top_above_top = self.y <= other.y;
+	bool right_greater_right = self.x + self.width >= other.x + other.width;
+	bool left_lesser_left = self.x <= other.x;
+	// if (bottom_below_top && top_above_bottom && right_greater_left && left_lesser_right) return LEFT;
+
+
+	if ((left_lesser_right && !left_lesser_left) || (right_greater_left && !right_greater_right))
+	{
+		// Bottom:
+		/*(
+			[self]
+			[other]
+		)*/
+		if (bottom_below_top && top_above_top) { return BOTTOM; }
+		// Top:
+		/*(
+			[other]
+			[self]
+		)*/
+		else if (top_above_bottom && bottom_below_bottom) { return TOP; }
+	}
+	if ((top_above_bottom && !top_above_top) || (bottom_below_top && !bottom_below_bottom))
+	{
+		// Right: ([self][other])
+		if (left_lesser_left && right_greater_left) { return RIGHT; }
+		// Left: ([other][self])
+		else if (right_greater_right && left_lesser_right) { return LEFT; }
+	}
+	if (top_above_bottom && bottom_below_top && left_lesser_right && right_greater_left) return ALL;
+	return NONE;
 }
 
 macro min(a, b) => a > b ? ($typeof(a))b : ($typeof(a))a;
@@ -142,13 +220,15 @@ struct Ball
 alias PanicFn = fn void(String, String, String, uint);
 PanicFn panic = fn void (message, file, function, line)
 {
-	write_terminal("Panic with message \"");
+	/*write_terminal("Panic: \"");
 	write_terminal(message);
-	write_terminal("\" in file \"");
+	write_terminal("\" in \"");
 	write_terminal(file);
-	write_terminal("\" in function \"");
+	write_terminal("\":\"");
 	write_terminal(function);
-	write_terminal("\"");
+	write_terminal("\"");*/
+	// write_terminal("PANIC!: ");
+	write_terminal(message);
 	while (true);
 };
 
@@ -177,7 +257,7 @@ struct Colour @packed
 	char g;
 	char b;
 }
-macro bool Colour.equals(self, Colour other) @operator(==) => self.a == other.a && self.r == other.r && self.g == other.g && self.b == other.b;
+// macro bool Colour.equals(self, Colour other) @operator(==) => self.a == other.a && self.r == other.r && self.g == other.g && self.b == other.b;
 
 const Colour WHITE = {255, 255, 255, 255};
 const Colour BLACK = {255, 0, 0, 0};
@@ -189,7 +269,7 @@ const Colour BLUE = {255, 0, 0, 255};
  @require x + width <= SCREEN_WIDTH
  @require y + height <= SCREEN_HEIGHT
 *>*/
-fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false) @noinline
+fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
 {
 	for (usz ys = y; ys < y + height; ys++)
 	{
