@@ -34,6 +34,7 @@
 	"cpu": "generic",
 	// Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
 	"opt": "Os",
+	"optsize": "tiny",
 	// "panic-msg": true,
 	"safe": true,
 	// "use-stdlib": true,

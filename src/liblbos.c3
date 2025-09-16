@@ -47,10 +47,10 @@ fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour 
 fn void FrameBuffer.trace_rect(self, usz x, usz y, usz width, usz height, Colour col, usz outline_width = 1, bool flush = false)
 {
 	// TODO: I could make this a lot more efficient
-	self.fill_rect(x, y, width, outline_width, col, flush: flush) @inline;
-	self.fill_rect(x, y + height, width, outline_width, col, flush: flush) @inline;
-	self.fill_rect(x, y, outline_width, height + outline_width, col, flush: flush) @inline;
-	self.fill_rect(x + height, y, outline_width, height + outline_width, col, flush: flush) @inline;
+	self.fill_rect(x, y, width, outline_width, col, flush: flush); // @inline;
+	self.fill_rect(x, y + height, width, outline_width, col, flush: flush); // @inline;
+	self.fill_rect(x, y, outline_width, height + outline_width, col, flush: flush); // @inline;
+	self.fill_rect(x + height, y, outline_width, height + outline_width, col, flush: flush); // @inline;
 }
 
 fn void FrameBuffer.set_pixel(self, ushort x, ushort y, Colour col, bool flush = false)

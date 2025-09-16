@@ -5,7 +5,7 @@ const FONT_WIDTH = 5;
 const FONT_HEIGHT = 6;
 const FONT_SPACING = 1;
 alias Character = CharRow[FONT_HEIGHT];
-
+$echo Character.sizeof;
 bitstruct CharRow : char
 {
 	char p1 : 0..0;
@@ -15,7 +15,7 @@ bitstruct CharRow : char
 	char p5 : 4..4;
 }
 
-fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_colour, bool clear_bg = false)
+fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_colour, bool clear_bg = false, bool flush = false)
 {
 	ushort total_x_off = 0;
 	foreach (c : str)
@@ -49,7 +49,7 @@ fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_co
 		}
 		total_x_off += FONT_WIDTH + FONT_SPACING;
 	}
-	fb.flush(x, y, total_x_off + FONT_WIDTH, FONT_HEIGHT);
+	if (flush) fb.flush(x, y, total_x_off + FONT_WIDTH, FONT_HEIGHT);
 }
 
 fn void draw_char(Character c, ushort x, ushort y, FrameBuffer fb, Colour font_colour, bool clear_bg)

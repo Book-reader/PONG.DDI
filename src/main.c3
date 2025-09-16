@@ -61,7 +61,7 @@ fn isz _start() @extern("_start") @nostrip
 	bot.update(fb, BOT_COL, SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y);
 	ball.update(fb, BALL_COL, SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2);
 
-	const TARGET_FPS = 120;
+	const TARGET_FPS = 60;
 	const long TIME_DELAY = (long)((1000.0f / TARGET_FPS) * 1000 * 1000);
 	long prev_time;
 	while (running)
@@ -77,7 +77,10 @@ fn isz _start() @extern("_start") @nostrip
 		prev_time = time;
 		keys.update();
 		if (keys.delta.up_arrow && player.y > 0) player.update(fb, PLAYER_COL, player.x, max(player.y, PADDLE_SPEED) - PADDLE_SPEED);
-		if (keys.delta.down_arrow && player.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.update(fb, PLAYER_COL, player.x, min(player.y, SCREEN_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED);
+		if (keys.delta.down_arrow && player.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.update(fb, PLAYER_COL, player.x, min(player.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED);
+
+		if (ball.y > bot.y + PADDLE_HEIGHT / 2 && bot.y + PADDLE_HEIGHT < SCREEN_HEIGHT) { bot.update(fb, BOT_COL, bot.x, min(bot.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED); }
+		else if (ball.y + BALL_SIZE < bot.y && bot.y > 0) { bot.update(fb, BOT_COL, bot.x, max(bot.y, PADDLE_SPEED) - PADDLE_SPEED); }
 
 		ushort ball_x;
 		ushort ball_y;
@@ -96,7 +99,6 @@ fn isz _start() @extern("_start") @nostrip
 			ball_x = min(ball.x, SCREEN_WIDTH - BALL_SPEED - BALL_SIZE) + BALL_SPEED;
 			if (ball_x + BALL_SIZE == SCREEN_WIDTH)
 			{
-				// ball.update(fb, BALL_COL, SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2);
 				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
 				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
 				ball_horizontal_dir = LEFT;
@@ -123,16 +125,16 @@ fn isz _start() @extern("_start") @nostrip
 				// TODO: double check all these changes to ball_x & ball_y
 				case LEFT:
 					ball_horizontal_dir = RIGHT;
-					ball_x = obj.x + obj.width + 1;
+					ball_x = (ushort)min(obj.x + obj.width + 1, SCREEN_WIDTH - BALL_SIZE);
 				case RIGHT:
 					ball_horizontal_dir = LEFT;
-					ball_x = obj.x - BALL_SIZE - 1;
+					ball_x = max(obj.x, BALL_SIZE + 1)  - 1 - BALL_SIZE;
 				case TOP:
 					ball_vertical_dir = DOWN;
-					ball_y = obj.y + obj.height + 1;
+					ball_y = (ushort)min(obj.y + obj.height + 1, SCREEN_HEIGHT - BALL_SIZE);
 				case BOTTOM:
 					ball_vertical_dir = UP;
-					ball_y = obj.y - BALL_SIZE - 1;
+					ball_y = max(obj.y, BALL_SIZE + 1) - 1 - BALL_SIZE;
 				case ALL:
 					if (ball_horizontal_dir == LEFT)
 					{
@@ -150,6 +152,7 @@ fn isz _start() @extern("_start") @nostrip
 			break;
 		}
 		ball.update(fb, BALL_COL, ball_x, ball_y);
+		fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
 	return 0;
 }
@@ -188,10 +191,14 @@ fn void Rect.update(&self, FrameBuffer fb, Colour col, ushort new_x, ushort new_
 {
 	// if (new_x != self.x || new_y != self.y)
 	{
+		ushort orig_x = self.x;
+		ushort orig_y = self.y;
 		fb.fill_rect(self.x, self.y, self.width, self.height, BG_COLOUR, flush: false);
 		fb.fill_rect(new_x, new_y, self.width, self.height, col, flush: false);
 		// TODO: this is required because of an OS bug
-		fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+		// fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+		// fb.flush(orig_x, orig_y, self.width, self.height);
+		// fb.flush(new_x, new_y, self.width, self.height);
 
 		self.x = new_x;
 		self.y = new_y;
