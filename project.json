@@ -31,7 +31,7 @@
 			"exec": [ "./makeddi ./build/example_c3 ./build/TEST.DDI", "sudo ./copy_to_fs.sh /dev/loop0" ],
 		},
 	},
-	"cpu": "rvi20u32_m",
+	"cpu": "generic",
 	// Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
 	"opt": "O0",
 	// "use-stdlib": true,
