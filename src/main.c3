@@ -2,7 +2,6 @@ module example_c3;
 // import std::core::mem::allocator @public;
 // import std::math::nolibc;
 
-int x = 6;
 // fn isz main() @extern("main") => _start() @noinline;
 fn isz _start() @extern("_start") @nostrip
 {
@@ -12,9 +11,9 @@ fn isz _start() @extern("_start") @nostrip
 	FrameBuffer fb = get_fb();
 	KeyState keys;
 	fb.reset();
-	// println("Pong!");
-	// println("use arrow keys to move up and down");
-	// println("\npress space to continue...");
+	println("Pong!");
+	println("use arrow keys to move up and down");
+	println("\npress space to continue...");
 	do
 	{
 		keys.update();
@@ -22,6 +21,8 @@ fn isz _start() @extern("_start") @nostrip
 
 	fb.reset();
 	bool running = true;
+
+	usz cl;
 
 	const Colour PLAYER_COL = GREEN;
 	const Colour BOT_COL = RED;
@@ -37,8 +38,15 @@ fn isz _start() @extern("_start") @nostrip
 	player.update(fb, PLAYER_COL, PADDLE_XOFF, PADDLE_START_Y);
 	bot.update(fb, BOT_COL, SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y);
 	ball.update(fb, BALL_COL, SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2);
+
+	const TARGET_FPS = 60;
+	const long TIME_DELAY = (long)((1000.0 / TARGET_FPS) * 1000 * 1000);
+	long prev_time;
 	while (running)
 	{
+		long time = get_time();
+		if (time - prev_time < TIME_DELAY) continue;
+		prev_time = time;
 		keys.update();
 		if (keys.delta.up_arrow && player.y > 0) player.update(fb, PLAYER_COL, player.x, max(player.y, PADDLE_SPEED) - PADDLE_SPEED);
 		if (keys.delta.down_arrow && player.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.update(fb, PLAYER_COL, player.x, min(player.y, SCREEN_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED);
@@ -114,26 +122,71 @@ fn isz _start() @extern("_start") @nostrip
 			break;
 		}
 		ball.update(fb, BALL_COL, ball_x, ball_y);
-		// TODO: a better way to delay
-		// const DELAY = 5000000;
-		const DELAY = 10000000;
-		for (usz i = 0; i < DELAY; $$volatile_store(&i, i + 1)) asm("nop");
 	}
 	return 0;
+}
+
+fn String itoa(char[] buf, usz num) => xtoa(buf, num);
+fn String ltoa(char[] buf, long num) => xtoa(buf, num);
+
+fn String itob(usz num)
+{
+	static char[usz.sizeof * 8] buf;
+
+	for (usz i = 0; i < usz.sizeof * 8; i++)
+	{
+		buf[i] = (num & (1 << i)) == 0 ? '0' : '1';
+	}
+
+	return (String)&buf;
+}
+
+macro xtoa(char[] buf, num)
+{
+	usz len = 0;
+
+	bool neg = num < 0;
+
+	while (num > 0)
+	{
+		buf[len++] = (char)(num % 10) + '0';
+		num /= 10;
+	}
+	if (neg) buf[len++] = '-';
+	/*foreach (i, c : buf[:len / 2])
+	{
+		buf[i] = buf[len - i - 1];
+		buf[len - i - 1] = c;
+	}*/
+	for (usz j = 0, usz k = len - 1; j < k; j++, k--) {
+		char temp = buf[j];
+		buf[j] = buf[k];
+		buf[k] = temp;
+	}
+	return (String)buf[:len];
 }
 
 enum HorizonalDirection : const char {LEFT, RIGHT}
 enum VerticalDirection : const char {UP, DOWN}
 
 const BALL_SIZE = 6; // Probably should be divisible by 2
-const BALL_SPEED = 5;
+const BALL_SPEED = 2;
 
-const PADDLE_SPEED = 7;
+const PADDLE_SPEED = 3;
 const PADDLE_XOFF = 3;
 const PADDLE_START_Y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-const PADDLE_WIDTH = 80;
+const PADDLE_WIDTH = 5;
 const PADDLE_HEIGHT = 50;
 const Colour BG_COLOUR = {255, 200, 200, 200};
+
+fn long get_time()
+{
+	const uptr RTC_LOC = 0x101000;
+	uint time_low = $$volatile_load((uint*)RTC_LOC);
+	int time_high = $$volatile_load((int*)(RTC_LOC + uint.sizeof));
+
+	return ((long)time_low) | (((long)time_high) << 32);
+}
 
 struct Rect
 {
@@ -220,15 +273,13 @@ struct Ball
 alias PanicFn = fn void(String, String, String, uint);
 PanicFn panic = fn void (message, file, function, line)
 {
-	/*write_terminal("Panic: \"");
+	write_terminal("Panic: \"");
 	write_terminal(message);
 	write_terminal("\" in \"");
 	write_terminal(file);
 	write_terminal("\":\"");
 	write_terminal(function);
-	write_terminal("\"");*/
-	// write_terminal("PANIC!: ");
-	write_terminal(message);
+	write_terminal("\"");
 	while (true);
 };
 
@@ -265,10 +316,10 @@ const Colour RED = {255, 255, 0, 0};
 const Colour GREEN = {255, 0, 255, 0};
 const Colour BLUE = {255, 0, 0, 255};
 
-/*<*
+<*
  @require x + width <= SCREEN_WIDTH
  @require y + height <= SCREEN_HEIGHT
-*>*/
+*>
 fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
 {
 	for (usz ys = y; ys < y + height; ys++)
@@ -288,10 +339,10 @@ fn void FrameBuffer.trace_rect(self, usz x, usz y, usz width, usz height, Colour
 fn void FrameBuffer.reset(self) => enable_fb();
 fn void FrameBuffer.clear(self, Colour col) => self.fill_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, col, flush: true);
 // fn void FrameBuffer.clear_rect(self, usz x, usz y, usz width, usz height, bool flush = false) => self.fill_rect(x, y, width, height, WHITE, flush: flush);
-/*<*
+<*
  @require x + width <= SCREEN_WIDTH
  @require y + height <= SCREEN_HEIGHT
-*>*/
+*>
 fn void FrameBuffer.flush(self, usz x, usz y, usz width, usz height) => flush_fb_rect(x, y, width, height);
 
 fn void write_terminal(String str) => syscall(WRITE_TERMINAL, (usz)str.ptr, str.len);
@@ -306,14 +357,19 @@ fn FrameBuffer get_fb() => (FrameBuffer)syscall(FB_POINTER);
 fn void flush_fb_rect(usz x, usz y, usz w, usz h) => syscall(FLUSH_FB, x, y, w, h);
 fn void get_keymap(KeyState* state) => syscall(GET_CURRENT_KEYMAP, (usz)state);
 
-fn void println(String str)
+fn void print(String str)
 {
 	write_terminal(str);
-	write_terminal("\n");
+}
+
+fn void println(String str)
+{
+	print(str);
+	print("\n");
 }
 
 
-fn usz syscall(Syscall syscall, usz a1 = 0, usz a2 = 0, usz a3 = 0, usz a4 = 0, usz a5 = 0, usz a6 = 0) @naked
+fn usz syscall(Syscall syscall, usz a1 = 0, usz a2 = 0, usz a3 = 0, usz a4 = 0, usz a5 = 0, usz a6 = 0) @naked @noinline
 {
 	asm
 	(`
@@ -404,6 +460,12 @@ bitstruct KeyDelta : ushort
 	bool down_arrow;
 	bool left_arrow;
 	bool right_arrow;
+}
+
+fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
+{
+	s[:n] = c;
+	return s;
 }
 
 /*
