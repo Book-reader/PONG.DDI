@@ -60,33 +60,36 @@ fn void FrameBuffer.set_pixel(self, ushort x, ushort y, Colour col/*, bool flush
 	((Colour*)self)[y * SCREEN_WIDTH + x] = col;
 	// if (flush) self.flush(x, y, 1, 1);
 }
-fn void FrameBuffer.reset(self) => enable_fb();
-fn void FrameBuffer.clear(self, Colour col)
+// Saves some bytes as macros
+macro void FrameBuffer.reset(self) => enable_fb();
+macro void FrameBuffer.clear(self, Colour col)
 {
 	self.fill_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, col/*, flush: true*/);
 	self.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 // fn void FrameBuffer.clear_rect(self, usz x, usz y, usz width, usz height, bool flush = false) => self.fill_rect(x, y, width, height, WHITE, flush: flush);
+
+// These are macros because it saves some bytes
 <*
  @require x + width <= SCREEN_WIDTH
  @require y + height <= SCREEN_HEIGHT
 *>
-fn void FrameBuffer.flush(self, usz x, usz y, usz width, usz height) => flush_fb_rect(x, y, width, height);
-
-fn void write_terminal(String str) => syscall(WRITE_TERMINAL, (usz)str.ptr, str.len);
-fn void* alloc_blocks(usz num_blocks) => (void*)syscall(ALLOC_BLOCKS, num_blocks);
-fn void free_blocks(void* block, usz num_blocks) => syscall(FREE_BLOCKS, (usz)block, num_blocks);
-fn void disable_fb() => syscall(DISABLE_FB_CONSOLE);
-fn void enable_fb() => syscall(ENABLE_FB_CONSOLE);
+macro void FrameBuffer.flush(self, usz x, usz y, usz width, usz height) => flush_fb_rect(x, y, width, height);
+macro void write_terminal(String str) => syscall(WRITE_TERMINAL, (usz)str.ptr, str.len);
+macro void* alloc_blocks(usz num_blocks) => (void*)syscall(ALLOC_BLOCKS, num_blocks);
+macro void free_blocks(void* block, usz num_blocks) => syscall(FREE_BLOCKS, (usz)block, num_blocks);
+macro void disable_fb() => syscall(DISABLE_FB_CONSOLE);
+macro void enable_fb() => syscall(ENABLE_FB_CONSOLE);
 <*
  @ensure (void*)return != null : "Failed to get FrameBuffer pointer"
 *>
-fn FrameBuffer get_fb() => (FrameBuffer)syscall(FB_POINTER);
-fn void flush_fb_rect(usz x, usz y, usz w, usz h) => syscall(FLUSH_FB, x, y, w, h);
-fn void get_keymap(KeyState* state) => syscall(GET_CURRENT_KEYMAP, (usz)state);
-fn void get_kernel_info(KernelInfo* info) => syscall(KERNEL_INFO, (usz)info);
+macro FrameBuffer get_fb() => (FrameBuffer)syscall(FB_POINTER);
+macro void flush_fb_rect(usz x, usz y, usz w, usz h) => syscall(FLUSH_FB, x, y, w, h);
+macro void get_keymap(KeyState* state) => syscall(GET_CURRENT_KEYMAP, (usz)state);
+macro void get_kernel_info(KernelInfo* info) => syscall(KERNEL_INFO, (usz)info);
 
-fn void print(String str)
+// Saves ~30 bytes as a macro
+macro void print(String str)
 {
 	write_terminal(str);
 }
@@ -109,8 +112,8 @@ fn usz syscall(Syscall syscall, usz a1 = 0, usz a2 = 0, usz a3 = 0, usz a4 = 0, 
 {
 	asm
 	(`
-		ecall;
-		ret;
+		ecall
+		ret
 	`);
 }
 
@@ -121,7 +124,8 @@ struct KeyState
 	KeyGamma gamma;
 	KeyDelta delta;
 }
-fn void KeyState.update(&self) => get_keymap(self);
+// Saves some bytes as a macro
+macro void KeyState.update(&self) => get_keymap(self);
 
 bitstruct KeyAlpha : ushort
 {

@@ -10,7 +10,6 @@ alias lbos = module liblbos;
 
 alias Fp32 = FixedPoint {uint, 21};
 // TODO: once inference is in the master branch this isn't needed
-alias to_fp32 = fixed_point::from {uint, 21};
 fn isz _start() @extern("_start") @nostrip
 {
 	/*char[50] t;
@@ -79,15 +78,16 @@ fn isz _start() @extern("_start") @nostrip
 		char[10] buf;
 		// TODO: this causes a compiler assert:
 		// lbos::printlns("FPS:", (to_fp32(1000) / ((to_fp32(diff) / 1000) / 1000)).to_string(&buf));
-		font::draw_text(/*"FPS: "*/ (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf), 20, 20, fb, RED, clear_bg: true);
+		Fp32 thousand = fixed_point::from(1000);
+		font::draw_text(/*"FPS: "*/ (thousand / ((diff / 1000) / 1000)).to_string(&buf), 20, 20, fb, RED, clear_bg: true);
 
 		font::draw_text(utoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
 		font::draw_text(utoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
 
-		// fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
-		// font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
-		// // fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
-		// font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
+		fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
+		font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
+		// fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
+		font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
 
 		// font::draw_text(utoa(&buf, 1000 / ((diff / 1000) / 1000)), 20, 20, fb, RED, clear_bg: true);
 		// lbos::printlns("FPS: ", (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf));
@@ -160,7 +160,8 @@ const Colour BG_COLOUR = {255, 200, 200, 200};
 const VELOCITY_FACTOR = 10;
 const DAMPING_FACTOR = 15;
 
-fn long get_time()
+// Macro because it saves some bytes
+macro long get_time()
 {
 	const uptr RTC_LOC = 0x101000;
 	uint time_low = $$volatile_load((uint*)RTC_LOC);
@@ -253,8 +254,8 @@ fn void Rect.update(&self, FrameBuffer fb, Colour col)
 	// fb.flush(new_x, new_y, self.width, self.height);
 }
 
-// ONLY MACRO BECAUSE ONLY CALLED ONCE, if called more than once make it a @noinline function
-macro Rect.handle_collides_any(&self, Rect[] others, FrameBuffer fb, Colour col)
+// Is a macro since it uses less instructions this way
+macro void Rect.handle_collides_any(&self, Rect[] others, FrameBuffer fb, Colour col)
 {
 	foreach (obj: others)
 	{
@@ -303,7 +304,8 @@ enum Intersection : char
 }
 
 // The intersection it returns is which side of self intersects with other
-fn Intersection Rect.intersects(self, Rect other)
+// As a macro it uses less instructions somehow so I leave it like that
+macro Intersection Rect.intersects(self, Rect other)
 {
 	bool bottom_below_top = self.pos.y + self.height >= other.pos.y;
 	bool top_above_bottom = self.pos.y <= other.pos.y + other.height;
@@ -373,10 +375,10 @@ fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
 // module std::core::builtin;
 // import liblbos;
 
-// TODO: this breaks when inside the builtin module, probably a bug
-fn String itoa(char[] buf, isz num)  @noinline @builtin => xtoa(buf, num);
-fn String utoa(char[] buf, usz num)  @noinline @builtin => xtoa(buf, num);
-fn String ltoa(char[] buf, long num) @noinline @builtin => xtoa(buf, num);
+// TODO: this breaks when inside the builtin module, probably a compiler bug
+macro String itoa(char[] buf, isz num)  @builtin => xtoa(buf, num);
+macro String utoa(char[] buf, usz num)  @builtin => xtoa(buf, num);
+macro String ltoa(char[] buf, long num) @builtin => xtoa(buf, num);
 module std::core::builtin;
 fn String itob(char[] buf, usz num) @builtin
 {
