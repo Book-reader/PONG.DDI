@@ -13,6 +13,12 @@ alias Fp32 = FixedPoint {uint, 21};
 alias to_fp32 = fixed_point::from {uint, 21};
 fn isz _start() @extern("_start") @nostrip
 {
+	/*char[50] t;
+	KernelInfo kinfo;
+	lbos::get_kernel_info(&kinfo);
+	lbos::printlns("Total processes: ",     itoa(&t, kinfo.current_process_count));
+	lbos::printlns("Total memory blocks: ", itoa(&t, kinfo.total_mem_blocks));
+	lbos::printlns("Free memory blocks: ",  itoa(&t, kinfo.free_mem_blocks));*/
 	// This doesn't work because thread_allocator is tlocal
 	// allocator::thread_allocator = &VORE_ALLOCATOR;
 	// allocator::temp_base_allocator = &VORE_ALLOCATOR;
@@ -55,6 +61,8 @@ fn isz _start() @extern("_start") @nostrip
 	Rect ball = {0, 0, BALL_SIZE, BALL_SIZE};
 	HorizonalDirection ball_horizontal_dir = LEFT;
 	VerticalDirection ball_vertical_dir = DOWN;
+	ushort player_score = 0;
+	ushort bot_score = 0;
 
 	fb.clear(BG_COLOUR);
 	player.update(fb, PLAYER_COL, PADDLE_XOFF, PADDLE_START_Y);
@@ -72,6 +80,9 @@ fn isz _start() @extern("_start") @nostrip
 		char[10] buf;
 		// printlns("FPS:", (to_fp32(1000) / ((to_fp32(diff) / 1000) / 1000)).to_string(&buf));
 		font::draw_text(/*"FPS: "*/ (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf), 20, 20, fb, RED, clear_bg: true);
+
+		font::draw_text(itoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
+		font::draw_text(itoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
 		// font::draw_text(itoa(&buf, 1000 / ((diff / 1000) / 1000)), 20, 20, fb, RED, clear_bg: true);
 		// lbos::printlns("FPS: ", (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf));
 		prev_time = time;
@@ -79,8 +90,11 @@ fn isz _start() @extern("_start") @nostrip
 		if (keys.delta.up_arrow && player.y > 0) player.update(fb, PLAYER_COL, player.x, max(player.y, PADDLE_SPEED) - PADDLE_SPEED);
 		if (keys.delta.down_arrow && player.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.update(fb, PLAYER_COL, player.x, min(player.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED);
 
-		if (ball.y > bot.y + PADDLE_HEIGHT / 2 && bot.y + PADDLE_HEIGHT < SCREEN_HEIGHT) { bot.update(fb, BOT_COL, bot.x, min(bot.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED); }
-		else if (ball.y + BALL_SIZE < bot.y && bot.y > 0) { bot.update(fb, BOT_COL, bot.x, max(bot.y, PADDLE_SPEED) - PADDLE_SPEED); }
+		if (ball.x > SCREEN_WIDTH  - SCREEN_HEIGHT / 3)
+		{
+			if (ball.y > bot.y + PADDLE_HEIGHT / 2 && bot.y + PADDLE_HEIGHT < SCREEN_HEIGHT) { bot.update(fb, BOT_COL, bot.x, min(bot.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED); }
+			else if (ball.y + BALL_SIZE < bot.y + PADDLE_HEIGHT / 2 && bot.y > 0) { bot.update(fb, BOT_COL, bot.x, max(bot.y, PADDLE_SPEED) - PADDLE_SPEED); }
+		}
 
 		ushort ball_x;
 		ushort ball_y;
@@ -102,6 +116,7 @@ fn isz _start() @extern("_start") @nostrip
 				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
 				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
 				ball_horizontal_dir = LEFT;
+				player_score ++;
 			}
 		}
 		else
@@ -112,6 +127,7 @@ fn isz _start() @extern("_start") @nostrip
 				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
 				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
 				ball_horizontal_dir = RIGHT;
+				bot_score ++;
 			}
 		}
 
@@ -161,7 +177,7 @@ enum HorizonalDirection : const char {LEFT, RIGHT}
 enum VerticalDirection : const char {UP, DOWN}
 
 const BALL_SIZE = 6; // Probably should be divisible by 2
-const BALL_SPEED = 2;
+const BALL_SPEED = 3;
 
 const PADDLE_SPEED = 3;
 const PADDLE_XOFF = 3;
@@ -266,11 +282,17 @@ struct Ball
 }
 
 alias PanicFn = fn void(String, String, String, uint);
-PanicFn panic = fn void (message, file, function, line)
+PanicFn panic = &default_panic;
+fn void default_panic(String message, String file, String function, uint line)
 {
-	lbos::printlns("Panic: \"", message, "\" in \"", file, "\":\"", function, "\"");
+	// lbos::printlns("Panic: \"", message, "\" in \"", file, "\":\"", function, "\"");
+	$if $$PANIC_MSG:
+		lbos::printlns("PANIC!: ", message);
+	$else
+		lbos::println("PANIC!!!!");
+	$endif
 	while (true);
-};
+}
 
 fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
 {
@@ -278,21 +300,23 @@ fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
 	return s;
 }
 
-module std::core::builtin;
+// module std::core::builtin;
+// import liblbos;
 
+// TODO: this breaks when inside the builtin module, probably a bug
 fn String itoa(char[] buf, usz num) @builtin => xtoa(buf, num);
 fn String ltoa(char[] buf, long num) @builtin => xtoa(buf, num);
-
-fn String itob(usz num) @builtin
+module std::core::builtin;
+fn String itob(char[] buf, usz num) @builtin
 {
-	static char[usz.sizeof * 8] buf;
+	// static char[usz.sizeof * 8] buf;
 
 	for (usz i = 0; i < usz.sizeof * 8; i++)
 	{
 		buf[i] = (num & (1 << i)) == 0 ? '0' : '1';
 	}
 
-	return (String)&buf;
+	return (String)buf;
 }
 
 macro xtoa(char[] buf, num) @builtin
@@ -304,7 +328,9 @@ macro xtoa(char[] buf, num) @builtin
 	}
 	usz len = 0;
 
-	bool neg = num < 0;
+	// TODO: it could be a bug that `neg = num < 0` is both allowed & crashes(?) when passing an unsigned integer
+	// TypeKind 2 is SIGNED_INT
+	bool neg = false; //$kindof(num) == (char)2 ???  num < 0 : false;// num < 0;
 
 	while (num > 0)
 	{
@@ -317,7 +343,8 @@ macro xtoa(char[] buf, num) @builtin
 		buf[i] = buf[len - i - 1];
 		buf[len - i - 1] = c;
 	}*/
-	for (usz j = 0, usz k = len - 1; j < k; j++, k--) {
+	for (usz j = 0, usz k = len - 1; j < k; j++, k--)
+	{
 		char temp = buf[j];
 		buf[j] = buf[k];
 		buf[k] = temp;

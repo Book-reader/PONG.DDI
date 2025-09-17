@@ -2,6 +2,8 @@ module liblbos;
 
 enum Syscall : const usz
 {
+	DO_NOTHING = 0,
+	KERNEL_INFO = 1,
 	WRITE_TERMINAL = 6,
 	ALLOC_BLOCKS = 7,
 	FREE_BLOCKS = 8,
@@ -78,6 +80,7 @@ fn void enable_fb() => syscall(ENABLE_FB_CONSOLE);
 fn FrameBuffer get_fb() => (FrameBuffer)syscall(FB_POINTER);
 fn void flush_fb_rect(usz x, usz y, usz w, usz h) => syscall(FLUSH_FB, x, y, w, h);
 fn void get_keymap(KeyState* state) => syscall(GET_CURRENT_KEYMAP, (usz)state);
+fn void get_kernel_info(KernelInfo* info) => syscall(KERNEL_INFO, (usz)info);
 
 fn void print(String str)
 {
@@ -189,4 +192,11 @@ bitstruct KeyDelta : ushort
 	bool down_arrow;
 	bool left_arrow;
 	bool right_arrow;
+}
+
+struct KernelInfo
+{
+	usz current_process_count;
+	usz total_mem_blocks;
+	usz free_mem_blocks;
 }
