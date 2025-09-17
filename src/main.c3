@@ -1,4 +1,4 @@
-module example_c3;
+module pong;
 import fixed_point;
 import liblbos;
 import font;
@@ -9,7 +9,7 @@ alias lbos = module liblbos;
 
 
 alias Fp32 = FixedPoint {uint, 21};
-// TODO: once inference is in the master branch this isn't needed
+
 fn isz _start() @extern("_start") @nostrip
 {
 	/*char[50] t;

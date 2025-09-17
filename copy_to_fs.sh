@@ -8,7 +8,7 @@ mkdir -p mount
 mount "${storage_device}" mount
 
 echo "COPYING..."
-cp -v build/TEST.DDI mount
+cp -v build/PONG.DDI mount
 
 echo "UNMOUNTING..."
 umount "${storage_device}"

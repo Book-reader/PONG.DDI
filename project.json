@@ -21,14 +21,14 @@
 	// "linker-search-paths": [ "." ],
 	// Targets.
 	"targets": {
-		"example_c3": {
+		"pong": {
 			// Executable or library.
 			"type": "executable",
 		},
 		"setup": {
 			"type": "prepare",
 			"script-dir": ".",
-			"exec": [ "./makeddi ./build/example_c3 ./build/TEST.DDI", "sudo ./copy_to_fs.sh /dev/loop0" ],
+			"exec": [ "./makeddi ./build/pong ./build/PONG.DDI", "sudo ./copy_to_fs.sh /dev/loop0" ],
 		},
 	},
 	"cpu": "generic",
