@@ -38,30 +38,34 @@ const Colour BLUE @builtin = {255, 0, 0, 255};
  @require x + width <= SCREEN_WIDTH
  @require y + height <= SCREEN_HEIGHT
 *>
-fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col, bool flush = false)
+fn void FrameBuffer.fill_rect(self, usz x, usz y, usz width, usz height, Colour col/*, bool flush = false*/)
 {
 	for (usz ys = y; ys < y + height; ys++)
 	{
 		((Colour*)self)[ys * SCREEN_WIDTH + x:width] = col;
 	}
-	if (flush) self.flush(x, y, width, height);
+	// if (flush) self.flush(x, y, width, height);
 }
-fn void FrameBuffer.trace_rect(self, usz x, usz y, usz width, usz height, Colour col, usz outline_width = 1, bool flush = false)
+fn void FrameBuffer.trace_rect(self, usz x, usz y, usz width, usz height, Colour col, usz outline_width = 1/*, bool flush = false*/)
 {
 	// TODO: I could make this a lot more efficient
-	self.fill_rect(x, y, width, outline_width, col, flush: flush); // @inline;
-	self.fill_rect(x, y + height, width, outline_width, col, flush: flush); // @inline;
-	self.fill_rect(x, y, outline_width, height + outline_width, col, flush: flush); // @inline;
-	self.fill_rect(x + height, y, outline_width, height + outline_width, col, flush: flush); // @inline;
+	self.fill_rect(x, y, width, outline_width, col/*, flush: flush*/); // @inline;
+	self.fill_rect(x, y + height, width, outline_width, col/*, flush: flush*/); // @inline;
+	self.fill_rect(x, y, outline_width, height + outline_width, col/*, flush: flush*/); // @inline;
+	self.fill_rect(x + height, y, outline_width, height + outline_width, col/*, flush: flush*/); // @inline;
 }
 
-fn void FrameBuffer.set_pixel(self, ushort x, ushort y, Colour col, bool flush = false)
+fn void FrameBuffer.set_pixel(self, ushort x, ushort y, Colour col/*, bool flush = false*/)
 {
 	((Colour*)self)[y * SCREEN_WIDTH + x] = col;
-	if (flush) self.flush(x, y, 1, 1);
+	// if (flush) self.flush(x, y, 1, 1);
 }
 fn void FrameBuffer.reset(self) => enable_fb();
-fn void FrameBuffer.clear(self, Colour col) => self.fill_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, col, flush: true);
+fn void FrameBuffer.clear(self, Colour col)
+{
+	self.fill_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, col/*, flush: true*/);
+	self.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+}
 // fn void FrameBuffer.clear_rect(self, usz x, usz y, usz width, usz height, bool flush = false) => self.fill_rect(x, y, width, height, WHITE, flush: flush);
 <*
  @require x + width <= SCREEN_WIDTH

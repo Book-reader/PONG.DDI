@@ -15,7 +15,7 @@ bitstruct CharRow : char
 	char p5 : 4..4;
 }
 
-fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_colour, bool clear_bg = false, bool flush = false)
+fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_colour, bool clear_bg = false/*, bool flush = false*/)
 {
 	ushort total_x_off = 0;
 	foreach (c : str)
@@ -53,7 +53,7 @@ fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_co
 		}
 		total_x_off += FONT_WIDTH + FONT_SPACING;
 	}
-	if (flush) fb.flush(x, y, total_x_off + FONT_WIDTH, FONT_HEIGHT);
+	// if (flush) fb.flush(x, y, total_x_off + FONT_WIDTH, FONT_HEIGHT);
 }
 
 fn void draw_char(Character c, ushort x, ushort y, FrameBuffer fb, Colour font_colour, bool clear_bg)

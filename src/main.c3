@@ -25,9 +25,9 @@ fn isz _start() @extern("_start") @nostrip
 	FrameBuffer fb = lbos::get_fb();
 	KeyState keys;
 	fb.reset();
-	// lbos::println("Pong!");
-	// lbos::println("use arrow keys to move up and down");
-	// lbos::print("\npress space to continue...\n");
+	lbos::print("Pong!\n");
+	lbos::print("use arrow keys to move up and down\n");
+	lbos::print("\npress space to continue...\n");
 
 /*	char[100] buf;
 	Fp32 a = fixed_point::from {uint, 21}(6);
@@ -52,7 +52,7 @@ fn isz _start() @extern("_start") @nostrip
 
 	usz cl;
 
-	const Colour PLAYER_COL = GREEN;
+	const Colour PLAYER_COL = {255, 20, 200, 20};
 	const Colour BOT_COL = RED;
 	const Colour BALL_COL = BLUE;
 
@@ -83,6 +83,12 @@ fn isz _start() @extern("_start") @nostrip
 
 		font::draw_text(utoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
 		font::draw_text(utoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
+
+		fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
+		font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
+		// fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
+		font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
+
 		// font::draw_text(utoa(&buf, 1000 / ((diff / 1000) / 1000)), 20, 20, fb, RED, clear_bg: true);
 		// lbos::printlns("FPS: ", (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf));
 		prev_time = time;
@@ -90,18 +96,10 @@ fn isz _start() @extern("_start") @nostrip
 		// TODO: this causes a compiler assert (because of xtoa?):
 		// lbos::printlns("Player velocity x: ", xtoa(&buf, player.velocity.x), "y: ", xtoa(&buf, player.velocity.y));
 
-		// lbos::printlns(itoa(&buf, player.velocity.y));
-		// fb.fill_rect(0, 0, 30, font::FONT_HEIGHT, WHITE);
-		// font::draw_text(itoa(&buf, player.velocity.y), 0, 0, fb, BLACK, clear_bg: true);
-
-		fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
-		font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
-		// fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
-		font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
 		if (keys.delta.up_arrow && player.pos.y > 0) player.apply_force({0, -PADDLE_ACCELERATION});
 		if (keys.delta.down_arrow && player.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.apply_force({0, PADDLE_ACCELERATION});
 
-		if (ball.pos.x > SCREEN_HEIGHT - (SCREEN_HEIGHT / 8) * 3 && ball.velocity.x > 0)
+		if (ball.velocity.x > 0 && ball.pos.x > SCREEN_HEIGHT - (SCREEN_HEIGHT / 8) * 3)
 		{
 			if (ball.pos.y > bot.pos.y + PADDLE_HEIGHT / 2) { bot.apply_force({0, PADDLE_ACCELERATION}); }
 			else if (ball.pos.y < bot.pos.y + PADDLE_HEIGHT / 2) { bot.apply_force({0, -PADDLE_ACCELERATION}); }
@@ -205,9 +203,9 @@ fn void Rect.apply_force(&self, short[<2>] force) @noinline
 
 fn void Rect.set_pos(&self, short[<2>] pos, FrameBuffer fb, Colour col)
 {
-	fb.fill_rect(...self.pos, self.width, self.height, BG_COLOUR, flush: false);
+	fb.fill_rect(...self.pos, self.width, self.height, BG_COLOUR/*, flush: false*/);
 	self.pos = pos;
-	fb.fill_rect(...self.pos, self.width, self.height, col, flush: false);
+	fb.fill_rect(...self.pos, self.width, self.height, col/*, flush: false*/);
 }
 
 fn void Rect.update(&self, FrameBuffer fb, Colour col)
@@ -239,8 +237,8 @@ fn void Rect.update(&self, FrameBuffer fb, Colour col)
 	{
 		self.velocity -= self.velocity / self.air_resistance;
 	}
-	fb.fill_rect(...orig_pos, self.width, self.height, BG_COLOUR, flush: false);
-	fb.fill_rect(...self.pos, self.width, self.height, col, flush: false);
+	fb.fill_rect(...orig_pos, self.width, self.height, BG_COLOUR/*, flush: false*/);
+	fb.fill_rect(...self.pos, self.width, self.height, col/*, flush: false*/);
 	// TODO: this is required because of an OS bug
 	// fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	// fb.flush(orig_x, orig_y, self.width, self.height);
@@ -264,10 +262,10 @@ macro Rect.handle_collides_any(&self, Rect[] others, FrameBuffer fb, Colour col)
 				self.velocity.y += obj.velocity.y / DAMPING_FACTOR;
 				self.set_pos({obj.pos.x - self.width - 1, self.pos.y}, fb, col);
 			case TOP:
-				self.velocity.y = $$neg(self.velocity.y) + (short)$$abs(obj.velocity.y + obj.velocity.x / DAMPING_FACTOR) / DAMPING_FACTOR;
+				self.velocity.y = $$neg(self.velocity.y) + (short)$$abs(obj.velocity.y) / DAMPING_FACTOR;
 				self.set_pos({self.pos.x, obj.pos.y + obj.height + 1}, fb, col);
 			case BOTTOM:
-				self.velocity.y = $$abs(self.velocity.y) + (short)$$neg(obj.velocity.y + obj.velocity.x / DAMPING_FACTOR) / DAMPING_FACTOR;
+				self.velocity.y = $$abs(self.velocity.y) + (short)$$neg(obj.velocity.y) / DAMPING_FACTOR;
 				self.set_pos({self.pos.x, obj.pos.y - self.height - 1}, fb, col);
 			case ALL:
 				if (self.velocity.x >= 0)
@@ -308,9 +306,15 @@ fn Intersection Rect.intersects(self, Rect other)
 	bool top_above_top = self.pos.y <= other.pos.y;
 	bool right_greater_right = self.pos.x + self.width >= other.pos.x + other.width;
 	bool left_lesser_left = self.pos.x <= other.pos.x;
-	// if (bottom_below_top && top_above_bottom && right_greater_left && left_lesser_right) return LEFT;
 
 
+	if ((top_above_bottom && !top_above_top) || (bottom_below_top && !bottom_below_bottom))
+	{
+		// Right: ([self][other])
+		if (left_lesser_left && right_greater_left) { return RIGHT; }
+		// Left: ([other][self])
+		else if (right_greater_right && left_lesser_right) { return LEFT; }
+	}
 	if ((left_lesser_right && !left_lesser_left) || (right_greater_left && !right_greater_right))
 	{
 		// Bottom:
@@ -325,13 +329,6 @@ fn Intersection Rect.intersects(self, Rect other)
 			[self]
 		)*/
 		else if (top_above_bottom && bottom_below_bottom) { return TOP; }
-	}
-	if ((top_above_bottom && !top_above_top) || (bottom_below_top && !bottom_below_bottom))
-	{
-		// Right: ([self][other])
-		if (left_lesser_left && right_greater_left) { return RIGHT; }
-		// Left: ([other][self])
-		else if (right_greater_right && left_lesser_right) { return LEFT; }
 	}
 	if (top_above_bottom && bottom_below_top && left_lesser_right && right_greater_left) return ALL;
 	return NONE;
