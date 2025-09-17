@@ -132,10 +132,11 @@ fn isz _start() @extern("_start") @nostrip
 		}
 
 		// TODO: update pos here, then redraw below the collision detection so it cannot visually overlap the other object
-		ball.update(fb, BALL_COL, ball_x, ball_y);
+		// ball.update(fb, BALL_COL, ball_x, ball_y);
+		Rect new_ball = {ball_x, ball_y, ball.width, ball.height};
 		foreach (obj : (Rect[]){player, bot})
 		{
-			Intersection in = ball.intersects(obj);
+			Intersection in = new_ball.intersects(obj);
 			switch (in)
 			{
 				// TODO: double check all these changes to ball_x & ball_y
@@ -201,6 +202,8 @@ struct Rect
 	ushort y;
 	ushort width;
 	ushort height;
+	// ushort velocity;
+	// ushort friction;
 }
 
 fn void Rect.update(&self, FrameBuffer fb, Colour col, ushort new_x, ushort new_y)
