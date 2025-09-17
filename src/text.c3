@@ -22,6 +22,8 @@ fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_co
 	{
 		switch (c)
 		{
+			case '-':
+				draw_char(HYPHEN, x + total_x_off, y, fb, font_colour, clear_bg);
 			case '0':
 				draw_char(ZERO, x + total_x_off, y, fb, font_colour, clear_bg);
 			case '1':
@@ -37,9 +39,11 @@ fn void draw_text(String str, ushort x, ushort y, FrameBuffer fb, Colour font_co
 			case '6':
 				draw_char(SIX, x + total_x_off, y, fb, font_colour, clear_bg);
 			case '7':
+				draw_char(SEVEN, x + total_x_off, y, fb, font_colour, clear_bg);
 			case '8':
+				draw_char(EIGHT, x + total_x_off, y, fb, font_colour, clear_bg);
 			case '9':
-				nextcase default;
+				draw_char(NINE, x + total_x_off, y, fb, font_colour, clear_bg);
 			case '.':
 				draw_char(PERIOD, x + total_x_off, y, fb, font_colour, clear_bg);
 			case ' ':
@@ -147,4 +151,40 @@ const Character SIX = {
 	{1,1,1,1,0},
 	{1,0,0,0,1},
 	{0,1,1,1,0},
+};
+
+const Character SEVEN = {
+	{0,1,1,1,1},
+	{0,0,0,0,1},
+	{0,0,0,1,0},
+	{0,0,1,0,0},
+	{0,0,1,0,0},
+	{0,0,1,0,0},
+};
+
+const Character EIGHT = {
+	{0,1,1,1,0},
+	{1,0,0,0,1},
+	{0,1,1,1,0},
+	{1,0,0,0,1},
+	{1,0,0,0,1},
+	{0,1,1,1,0},
+};
+
+const Character NINE = {
+	{0,1,1,1,0},
+	{1,0,0,0,1},
+	{1,0,0,0,1},
+	{0,1,1,1,1},
+	{0,0,0,0,1},
+	{0,0,0,0,1},
+};
+
+const Character HYPHEN = {
+	{0,0,0,0,0},
+	{0,0,0,0,0},
+	{1,1,1,1,1},
+	{0,0,0,0,0},
+	{0,0,0,0,0},
+	{0,0,0,0,0},
 };

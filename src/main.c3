@@ -16,9 +16,9 @@ fn isz _start() @extern("_start") @nostrip
 	/*char[50] t;
 	KernelInfo kinfo;
 	lbos::get_kernel_info(&kinfo);
-	lbos::printlns("Total processes: ",     itoa(&t, kinfo.current_process_count));
-	lbos::printlns("Total memory blocks: ", itoa(&t, kinfo.total_mem_blocks));
-	lbos::printlns("Free memory blocks: ",  itoa(&t, kinfo.free_mem_blocks));*/
+	lbos::printlns("Total processes: ",     utoa(&t, kinfo.current_process_count));
+	lbos::printlns("Total memory blocks: ", utoa(&t, kinfo.total_mem_blocks));
+	lbos::printlns("Free memory blocks: ",  utoa(&t, kinfo.free_mem_blocks));*/
 	// This doesn't work because thread_allocator is tlocal
 	// allocator::thread_allocator = &VORE_ALLOCATOR;
 	// allocator::temp_base_allocator = &VORE_ALLOCATOR;
@@ -56,18 +56,17 @@ fn isz _start() @extern("_start") @nostrip
 	const Colour BOT_COL = RED;
 	const Colour BALL_COL = BLUE;
 
-	Rect player = {0, 0, PADDLE_WIDTH, PADDLE_HEIGHT};
-	Rect bot = {0, 0, PADDLE_WIDTH, PADDLE_HEIGHT};
-	Rect ball = {0, 0, BALL_SIZE, BALL_SIZE};
-	HorizonalDirection ball_horizontal_dir = LEFT;
-	VerticalDirection ball_vertical_dir = DOWN;
+	Rect player = {PADDLE_WIDTH, PADDLE_HEIGHT, {PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
+	Rect bot = {PADDLE_WIDTH, PADDLE_HEIGHT, {SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
+	Rect ball = {BALL_SIZE, BALL_SIZE, {SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2}, {0, 0}, BALL_MAX_VELOCITY, 0};
 	ushort player_score = 0;
 	ushort bot_score = 0;
 
 	fb.clear(BG_COLOUR);
-	player.update(fb, PLAYER_COL, PADDLE_XOFF, PADDLE_START_Y);
-	bot.update(fb, BOT_COL, SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y);
-	ball.update(fb, BALL_COL, SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2);
+	player.update(fb, PLAYER_COL);
+	bot.update(fb, BOT_COL);
+	ball.update(fb, BALL_COL);
+	ball.apply_force(BALL_START_VEL);
 
 	const TARGET_FPS = 60;
 	const long TIME_DELAY = (long)((1000.0f / TARGET_FPS) * 1000 * 1000);
@@ -78,24 +77,32 @@ fn isz _start() @extern("_start") @nostrip
 		if (time - prev_time < TIME_DELAY) continue;
 		usz diff = (usz)(time - prev_time);
 		char[10] buf;
-		// printlns("FPS:", (to_fp32(1000) / ((to_fp32(diff) / 1000) / 1000)).to_string(&buf));
+		// TODO: this causes a compiler assert:
+		// lbos::printlns("FPS:", (to_fp32(1000) / ((to_fp32(diff) / 1000) / 1000)).to_string(&buf));
 		font::draw_text(/*"FPS: "*/ (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf), 20, 20, fb, RED, clear_bg: true);
 
-		font::draw_text(itoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
-		font::draw_text(itoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
-		// font::draw_text(itoa(&buf, 1000 / ((diff / 1000) / 1000)), 20, 20, fb, RED, clear_bg: true);
+		font::draw_text(utoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
+		font::draw_text(utoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
+		// font::draw_text(utoa(&buf, 1000 / ((diff / 1000) / 1000)), 20, 20, fb, RED, clear_bg: true);
 		// lbos::printlns("FPS: ", (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf));
 		prev_time = time;
 		keys.update();
-		if (keys.delta.up_arrow && player.y > 0) player.update(fb, PLAYER_COL, player.x, max(player.y, PADDLE_SPEED) - PADDLE_SPEED);
-		if (keys.delta.down_arrow && player.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.update(fb, PLAYER_COL, player.x, min(player.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED);
+		// TODO: this causes a compiler assert:
+		// lbos::printlns("Player velocity x: ", xtoa(&buf, player.velocity.x), "y: ", xtoa(&buf, player.velocity.y));
 
+		// lbos::printlns(itoa(&buf, player.velocity.y));
+		fb.fill_rect(0, 0, 30, font::FONT_HEIGHT, WHITE);
+		font::draw_text(itoa(&buf, player.velocity.y), 0, 0, fb, BLACK, clear_bg: true);
+		if (keys.delta.up_arrow && player.pos.y > 0) player.apply_force({0, -PADDLE_ACCELERATION});
+		if (keys.delta.down_arrow && player.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.apply_force({0, PADDLE_ACCELERATION});
+/*
 		if (ball.x > SCREEN_WIDTH  - SCREEN_HEIGHT / 3)
 		{
 			if (ball.y > bot.y + PADDLE_HEIGHT / 2 && bot.y + PADDLE_HEIGHT < SCREEN_HEIGHT) { bot.update(fb, BOT_COL, bot.x, min(bot.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED); }
 			else if (ball.y + BALL_SIZE < bot.y + PADDLE_HEIGHT / 2 && bot.y > 0) { bot.update(fb, BOT_COL, bot.x, max(bot.y, PADDLE_SPEED) - PADDLE_SPEED); }
-		}
+		}*/
 
+/*
 		ushort ball_x;
 		ushort ball_y;
 		if (ball_vertical_dir == DOWN)
@@ -168,7 +175,9 @@ fn isz _start() @extern("_start") @nostrip
 			}
 			break;
 		}
-		ball.update(fb, BALL_COL, ball_x, ball_y);
+		ball.update(fb, BALL_COL, ball_x, ball_y);*/
+		player.update(fb, PLAYER_COL);
+		ball.update(fb, BALL_COL);
 		fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
 	return 0;
@@ -178,14 +187,21 @@ enum HorizonalDirection : const char {LEFT, RIGHT}
 enum VerticalDirection : const char {UP, DOWN}
 
 const BALL_SIZE = 6; // Probably should be divisible by 2
-const BALL_SPEED = 3;
+// const BALL_SPEED = 3;
+const short[<2>] BALL_START_VEL = {-30, 30};
+const ushort[<2>] BALL_MAX_VELOCITY = {80, 80};
 
-const PADDLE_SPEED = 3;
+// const PADDLE_SPEED = 3;
+const PADDLE_ACCELERATION = 30;
+const PADDLE_AIR_RESISTANCE = 2;
+const ushort[<2>] PADDLE_MAX_VELOCITY = {0, 40};
 const PADDLE_XOFF = 3;
 const PADDLE_START_Y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2;
 const PADDLE_WIDTH = 5;
 const PADDLE_HEIGHT = 50;
 const Colour BG_COLOUR = {255, 200, 200, 200};
+
+const VELOCITY_FACTOR = 10;
 
 fn long get_time()
 {
@@ -198,29 +214,59 @@ fn long get_time()
 
 struct Rect
 {
-	ushort x;
-	ushort y;
 	ushort width;
 	ushort height;
-	// ushort velocity;
-	// ushort friction;
+	short[<2>] pos;
+	short[<2>] velocity;
+	ushort[<2>] max_velocity;
+	// TODO: maybe air air resistance could be nonlinear? eg: velocity -= velocity / air_resistance
+	short air_resistance;
 }
 
-fn void Rect.update(&self, FrameBuffer fb, Colour col, ushort new_x, ushort new_y)
+fn void Rect.apply_force(&self, short[<2>] force)
+{
+	// TODO: clamp within max_velocity
+	self.velocity += force;
+}
+
+fn void Rect.update(&self, FrameBuffer fb, Colour col)
 {
 	// if (new_x != self.x || new_y != self.y)
 	{
-		ushort orig_x = self.x;
-		ushort orig_y = self.y;
-		fb.fill_rect(self.x, self.y, self.width, self.height, BG_COLOUR, flush: false);
-		fb.fill_rect(new_x, new_y, self.width, self.height, col, flush: false);
+		short[<2>] orig_pos = self.pos;
+		self.pos += self.velocity / VELOCITY_FACTOR;
+
+		if (self.pos.x + self.width > SCREEN_WIDTH)
+		{
+			self.velocity.x = -self.velocity.x;
+			self.pos.x = SCREEN_WIDTH - self.width;
+		}
+		else if (self.pos.x < 0)
+		{
+			self.velocity.x = -self.velocity.x;
+			self.pos.x = 0;
+		}
+		if (self.pos.y + self.height > SCREEN_HEIGHT)
+		{
+			self.velocity.y = -self.velocity.y;
+			self.pos.y = SCREEN_HEIGHT - self.height;
+		}
+		else if (self.pos.y < 0)
+		{
+			self.velocity.y = -self.velocity.y;
+			self.pos.y = 0;
+		}
+		// self.velocity = max((short[<2>]){0, 0}, self.velocity - self.air_resistance); 
+		if (self.air_resistance != 0)
+		{
+			self.velocity -= self.velocity / self.air_resistance;
+		}
+		fb.fill_rect(...orig_pos, self.width, self.height, BG_COLOUR, flush: false);
+		fb.fill_rect(...self.pos, self.width, self.height, col, flush: false);
 		// TODO: this is required because of an OS bug
 		// fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 		// fb.flush(orig_x, orig_y, self.width, self.height);
 		// fb.flush(new_x, new_y, self.width, self.height);
-
-		self.x = new_x;
-		self.y = new_y;
 	}
 }
 
@@ -237,15 +283,15 @@ enum Intersection : char
 // The intersection it returns is which side of self intersects with other
 fn Intersection Rect.intersects(self, Rect other)
 {
-	bool bottom_below_top = self.y + self.height >= other.y;
-	bool top_above_bottom = self.y <= other.y + other.height;
-	bool right_greater_left = self.x + self.width >= other.x;
-	bool left_lesser_right = self.x <= other.x + other.width;
+	bool bottom_below_top = self.pos.y + self.height >= other.pos.y;
+	bool top_above_bottom = self.pos.y <= other.pos.y + other.height;
+	bool right_greater_left = self.pos.x + self.width >= other.pos.x;
+	bool left_lesser_right = self.pos.x <= other.pos.x + other.width;
 
-	bool bottom_below_bottom = self.y + self.height >= other.y + other.height;
-	bool top_above_top = self.y <= other.y;
-	bool right_greater_right = self.x + self.width >= other.x + other.width;
-	bool left_lesser_left = self.x <= other.x;
+	bool bottom_below_bottom = self.pos.y + self.height >= other.pos.y + other.height;
+	bool top_above_top = self.pos.y <= other.pos.y;
+	bool right_greater_right = self.pos.x + self.width >= other.pos.x + other.width;
+	bool left_lesser_left = self.pos.x <= other.pos.x;
 	// if (bottom_below_top && top_above_bottom && right_greater_left && left_lesser_right) return LEFT;
 
 
@@ -275,8 +321,8 @@ fn Intersection Rect.intersects(self, Rect other)
 	return NONE;
 }
 
-macro min(a, b) => a > b ? ($typeof(a))b : ($typeof(a))a;
-macro max(a, b) => a > b ? ($typeof(a))a : ($typeof(a))b;
+macro min(a, b) => ($typeof(a))(a > b ? b : a);
+macro max(a, b) => ($typeof(a))(a > b ? a : b);
 
 struct Ball
 {
@@ -307,7 +353,8 @@ fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
 // import liblbos;
 
 // TODO: this breaks when inside the builtin module, probably a bug
-fn String itoa(char[] buf, usz num) @builtin => xtoa(buf, num);
+fn String itoa(char[] buf, isz num) @builtin => xtoa(buf, num);
+fn String utoa(char[] buf, usz num) @builtin => xtoa(buf, num);
 fn String ltoa(char[] buf, long num) @builtin => xtoa(buf, num);
 module std::core::builtin;
 fn String itob(char[] buf, usz num) @builtin
@@ -333,7 +380,8 @@ macro xtoa(char[] buf, num) @builtin
 
 	// TODO: it could be a bug that `neg = num < 0` is both allowed & crashes(?) when passing an unsigned integer
 	// TypeKind 2 is SIGNED_INT
-	bool neg = false; //$kindof(num) == (char)2 ???  num < 0 : false;// num < 0;
+	bool neg = $kindof(num) == (char)2 ???  num < 0 : false;// num < 0;
+	num = $$abs(num);
 
 	while (num > 0)
 	{

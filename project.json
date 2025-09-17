@@ -33,7 +33,8 @@
 	},
 	"cpu": "generic",
 	// Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
-	"opt": "Os",
+	"opt": "Oz",
+	"optlevel": "max",
 	"optsize": "tiny",
 	// "panic-msg": true,
 	"safe": true,
