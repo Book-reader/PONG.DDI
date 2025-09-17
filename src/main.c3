@@ -108,81 +108,11 @@ fn isz _start() @extern("_start") @nostrip
 			ball.set_pos(BALL_START_POS, fb, BALL_COL);
 			ball.velocity = {-BALL_START_VEL.x, BALL_START_VEL.y};
 		}
-/*
-		ushort ball_x;
-		ushort ball_y;
-		if (ball_vertical_dir == DOWN)
-		{
-			ball_y = min(ball.y, SCREEN_HEIGHT - BALL_SPEED - BALL_SIZE) + BALL_SPEED;
-			if (ball_y + BALL_SIZE == SCREEN_HEIGHT) ball_vertical_dir = UP;
-		}
-		else
-		{
-			ball_y = max(ball.y, BALL_SPEED) - BALL_SPEED;
-			if (ball_y == 0) ball_vertical_dir = DOWN;
-		}
-		if (ball_horizontal_dir == RIGHT)
-		{
-			ball_x = min(ball.x, SCREEN_WIDTH - BALL_SPEED - BALL_SIZE) + BALL_SPEED;
-			if (ball_x + BALL_SIZE == SCREEN_WIDTH)
-			{
-				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
-				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
-				ball_horizontal_dir = LEFT;
-				player_score ++;
-			}
-		}
-		else
-		{
-			ball_x = max(ball.x, BALL_SPEED) - BALL_SPEED;
-			if (ball_x == 0)
-			{
-				ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
-				ball_y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
-				ball_horizontal_dir = RIGHT;
-				bot_score ++;
-			}
-		}
 
-		// TODO: update pos here, then redraw below the collision detection so it cannot visually overlap the other object
-		// ball.update(fb, BALL_COL, ball_x, ball_y);
-		Rect new_ball = {ball_x, ball_y, ball.width, ball.height};
-		foreach (obj : (Rect[]){player, bot})
-		{
-			Intersection in = new_ball.intersects(obj);
-			switch (in)
-			{
-				// TODO: double check all these changes to ball_x & ball_y
-				case LEFT:
-					ball_horizontal_dir = RIGHT;
-					ball_x = (ushort)min(obj.x + obj.width + 1, SCREEN_WIDTH - BALL_SIZE);
-				case RIGHT:
-					ball_horizontal_dir = LEFT;
-					ball_x = max(obj.x, BALL_SIZE + 1)  - 1 - BALL_SIZE;
-				case TOP:
-					ball_vertical_dir = DOWN;
-					ball_y = (ushort)min(obj.y + obj.height + 1, SCREEN_HEIGHT - BALL_SIZE);
-				case BOTTOM:
-					ball_vertical_dir = UP;
-					ball_y = max(obj.y, BALL_SIZE + 1) - 1 - BALL_SIZE;
-				case ALL:
-					if (ball_horizontal_dir == LEFT)
-					{
-						ball_horizontal_dir = RIGHT;
-						ball_x = obj.x + obj.width + 1;
-					}
-					else
-					{
-						ball_horizontal_dir = LEFT;
-						ball_x = obj.x - 1;
-					}
-				case NONE:
-					continue;
-			}
-			break;
-		}
-		ball.update(fb, BALL_COL, ball_x, ball_y);*/
+		ball.handle_collides_any({player, bot}, fb, BALL_COL);
+
 		player.update(fb, PLAYER_COL);
+		bot.update(fb, BOT_COL);
 		ball.update(fb, BALL_COL);
 		fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
@@ -226,11 +156,10 @@ struct Rect
 	short[<2>] pos;
 	short[<2>] velocity;
 	ushort[<2>] max_velocity;
-	// TODO: maybe air air resistance could be nonlinear? eg: velocity -= velocity / air_resistance
 	short air_resistance;
 }
 
-fn void Rect.apply_force(&self, short[<2>] force)
+macro Rect.apply_force(&self, short[<2>] force)
 {
 	// TODO: clamp within max_velocity
 	self.velocity += force;
@@ -278,6 +207,43 @@ fn void Rect.update(&self, FrameBuffer fb, Colour col)
 	// fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	// fb.flush(orig_x, orig_y, self.width, self.height);
 	// fb.flush(new_x, new_y, self.width, self.height);
+}
+
+// ONLY MACRO BECAUSE ONLY CALLED ONCE, if called more than once make it a @noinline function
+macro Rect.handle_collides_any(&self, Rect[] others, FrameBuffer fb, Colour col)
+{
+	foreach (obj: others)
+	{
+		Intersection in = self.intersects(obj);
+		switch (in)
+		{
+			case LEFT:
+				self.velocity.x = $$abs(self.velocity.x);
+				self.set_pos({obj.pos.x + obj.width + 1, self.pos.y}, fb, col);
+			case RIGHT:
+				self.velocity.x = $$neg(self.velocity.x);
+				self.set_pos({obj.pos.x - self.width - 1, self.pos.y}, fb, col);
+			case TOP:
+				self.velocity.y = $$neg(self.velocity.y);
+				self.set_pos({self.pos.x, obj.pos.y + obj.height + 1}, fb, col);
+			case BOTTOM:
+				self.velocity.y = $$abs(self.velocity.y);
+				self.set_pos({self.pos.x, obj.pos.y - self.height - 1}, fb, col);
+			case ALL:
+				if (self.velocity.x >= 0)
+				{
+					self.pos.x = obj.pos.x + obj.width + 1;
+				}
+				else
+				{
+					self.pos.x = obj.pos.x - 1;
+				}
+				self.velocity.x = -self.velocity.x;
+			case NONE:
+				continue;
+		}
+		break;
+	}
 }
 
 enum Intersection : char
@@ -331,8 +297,8 @@ fn Intersection Rect.intersects(self, Rect other)
 	return NONE;
 }
 
-macro min(a, b) => ($typeof(a))(a > b ? b : a);
-macro max(a, b) => ($typeof(a))(a > b ? a : b);
+macro min(a, b) => $$min(a, b);
+macro max(a, b) => $$max(a, b);
 
 struct Ball
 {
