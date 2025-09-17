@@ -25,9 +25,9 @@ fn isz _start() @extern("_start") @nostrip
 	FrameBuffer fb = lbos::get_fb();
 	KeyState keys;
 	fb.reset();
-	lbos::println("Pong!");
-	lbos::println("use arrow keys to move up and down");
-	lbos::println("\npress space to continue...");
+	// lbos::println("Pong!");
+	// lbos::println("use arrow keys to move up and down");
+	// lbos::print("\npress space to continue...\n");
 
 /*	char[100] buf;
 	Fp32 a = fixed_point::from {uint, 21}(6);
@@ -91,10 +91,21 @@ fn isz _start() @extern("_start") @nostrip
 		// lbos::printlns("Player velocity x: ", xtoa(&buf, player.velocity.x), "y: ", xtoa(&buf, player.velocity.y));
 
 		// lbos::printlns(itoa(&buf, player.velocity.y));
-		fb.fill_rect(0, 0, 30, font::FONT_HEIGHT, WHITE);
-		font::draw_text(itoa(&buf, player.velocity.y), 0, 0, fb, BLACK, clear_bg: true);
+		// fb.fill_rect(0, 0, 30, font::FONT_HEIGHT, WHITE);
+		// font::draw_text(itoa(&buf, player.velocity.y), 0, 0, fb, BLACK, clear_bg: true);
+
+		fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
+		font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
+		// fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
+		font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
 		if (keys.delta.up_arrow && player.pos.y > 0) player.apply_force({0, -PADDLE_ACCELERATION});
 		if (keys.delta.down_arrow && player.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.apply_force({0, PADDLE_ACCELERATION});
+
+		if (ball.pos.x > SCREEN_HEIGHT - (SCREEN_HEIGHT / 8) * 3 && ball.velocity.x > 0)
+		{
+			if (ball.pos.y > bot.pos.y + PADDLE_HEIGHT / 2) { bot.apply_force({0, PADDLE_ACCELERATION}); }
+			else if (ball.pos.y < bot.pos.y + PADDLE_HEIGHT / 2) { bot.apply_force({0, -PADDLE_ACCELERATION}); }
+		}
 
 		if (ball.pos.x + BALL_SIZE == SCREEN_WIDTH)
 		{
@@ -110,6 +121,8 @@ fn isz _start() @extern("_start") @nostrip
 		}
 
 		ball.handle_collides_any({player, bot}, fb, BALL_COL);
+
+		// bot.set_pos({bot.pos.x, ball.pos.y - PADDLE_HEIGHT/2}, fb, BOT_COL);
 
 		player.update(fb, PLAYER_COL);
 		bot.update(fb, BOT_COL);
@@ -131,7 +144,7 @@ const ushort[<2>] BALL_MAX_VELOCITY = {80, 80};
 // const PADDLE_SPEED = 3;
 const PADDLE_ACCELERATION = 30;
 const PADDLE_AIR_RESISTANCE = 2;
-const ushort[<2>] PADDLE_MAX_VELOCITY = {0, 40};
+const ushort[<2>] PADDLE_MAX_VELOCITY = {0, 60};
 const PADDLE_XOFF = 3;
 const PADDLE_START_Y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2;
 const PADDLE_WIDTH = 5;
@@ -139,6 +152,7 @@ const PADDLE_HEIGHT = 50;
 const Colour BG_COLOUR = {255, 200, 200, 200};
 
 const VELOCITY_FACTOR = 10;
+const DAMPING_FACTOR = 15;
 
 fn long get_time()
 {
@@ -149,6 +163,7 @@ fn long get_time()
 	return ((long)time_low) | (((long)time_high) << 32);
 }
 
+// TODO: check if using `short pos_x, pos_y;` instead of vectors decreases the number of instructions
 struct Rect
 {
 	ushort width;
@@ -159,11 +174,34 @@ struct Rect
 	short air_resistance;
 }
 
-macro Rect.apply_force(&self, short[<2>] force)
+fn void Rect.apply_force(&self, short[<2>] force) @noinline
 {
 	// TODO: clamp within max_velocity
-	self.velocity += force;
+	// self.velocity += force;
+	if ($$abs(self.velocity.x += force.x) > self.max_velocity.x)
+	{
+		if (self.velocity.x >= 0)
+		{
+			self.velocity.x = self.max_velocity.x;
+		}
+		else
+		{
+			self.velocity.x = -self.max_velocity.x;
+		}
+	}
+	if ($$abs(self.velocity.y += force.y) > self.max_velocity.y)
+	{
+		if (self.velocity.y >= 0)
+		{
+			self.velocity.y = self.max_velocity.y;
+		}
+		else
+		{
+			self.velocity.y = -self.max_velocity.y;
+		}
+	}
 }
+
 
 fn void Rect.set_pos(&self, short[<2>] pos, FrameBuffer fb, Colour col)
 {
@@ -218,16 +256,18 @@ macro Rect.handle_collides_any(&self, Rect[] others, FrameBuffer fb, Colour col)
 		switch (in)
 		{
 			case LEFT:
-				self.velocity.x = $$abs(self.velocity.x);
+				self.velocity.x = $$abs(self.velocity.x) + (short)(obj.max_velocity.y - $$abs(obj.velocity.y)) / DAMPING_FACTOR;
+				self.velocity.y += obj.velocity.y / DAMPING_FACTOR;
 				self.set_pos({obj.pos.x + obj.width + 1, self.pos.y}, fb, col);
 			case RIGHT:
-				self.velocity.x = $$neg(self.velocity.x);
+				self.velocity.x = $$neg(self.velocity.x) + (short)$$neg(obj.max_velocity.y - $$abs(obj.velocity.y)) / DAMPING_FACTOR;
+				self.velocity.y += obj.velocity.y / DAMPING_FACTOR;
 				self.set_pos({obj.pos.x - self.width - 1, self.pos.y}, fb, col);
 			case TOP:
-				self.velocity.y = $$neg(self.velocity.y);
+				self.velocity.y = $$neg(self.velocity.y) + (short)$$abs(obj.velocity.y + obj.velocity.x / DAMPING_FACTOR) / DAMPING_FACTOR;
 				self.set_pos({self.pos.x, obj.pos.y + obj.height + 1}, fb, col);
 			case BOTTOM:
-				self.velocity.y = $$abs(self.velocity.y);
+				self.velocity.y = $$abs(self.velocity.y) + (short)$$neg(obj.velocity.y + obj.velocity.x / DAMPING_FACTOR) / DAMPING_FACTOR;
 				self.set_pos({self.pos.x, obj.pos.y - self.height - 1}, fb, col);
 			case ALL:
 				if (self.velocity.x >= 0)
@@ -329,9 +369,9 @@ fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
 // import liblbos;
 
 // TODO: this breaks when inside the builtin module, probably a bug
-fn String itoa(char[] buf, isz num) @builtin => xtoa(buf, num);
-fn String utoa(char[] buf, usz num) @builtin => xtoa(buf, num);
-fn String ltoa(char[] buf, long num) @builtin => xtoa(buf, num);
+fn String itoa(char[] buf, isz num)  @noinline @builtin => xtoa(buf, num);
+fn String utoa(char[] buf, usz num)  @noinline @builtin => xtoa(buf, num);
+fn String ltoa(char[] buf, long num) @noinline @builtin => xtoa(buf, num);
 module std::core::builtin;
 fn String itob(char[] buf, usz num) @builtin
 {
