@@ -26,7 +26,7 @@ fn isz _start() @extern("_start") @nostrip
 	KeyState keys;
 	fb.reset();
 	lbos::print("Pong!\n");
-	lbos::print("use arrow keys to move up and down\n");
+	lbos::print("use arrow keys to move up and down, q to quit\n");
 	lbos::print("\npress space to continue...\n");
 
 /*	char[100] buf;
@@ -84,10 +84,10 @@ fn isz _start() @extern("_start") @nostrip
 		font::draw_text(utoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
 		font::draw_text(utoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
 
-		fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
-		font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
-		// fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
-		font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
+		// fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
+		// font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
+		// // fb.fill_rect(50, font::FONT_HEIGHT, 30, font::FONT_HEIGHT, WHITE);
+		// font::draw_text(itoa(&buf, ball.velocity.y), 50, font::FONT_HEIGHT, fb, BLACK, clear_bg: true);
 
 		// font::draw_text(utoa(&buf, 1000 / ((diff / 1000) / 1000)), 20, 20, fb, RED, clear_bg: true);
 		// lbos::printlns("FPS: ", (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf));
@@ -95,6 +95,14 @@ fn isz _start() @extern("_start") @nostrip
 		keys.update();
 		// TODO: this causes a compiler assert (because of xtoa?):
 		// lbos::printlns("Player velocity x: ", xtoa(&buf, player.velocity.x), "y: ", xtoa(&buf, player.velocity.y));
+		if (keys.beta.q)
+		{
+			fb.reset();
+			if (player_score == bot_score) { lbos::print("It was a draw!\n"); }
+			else if (player_score > bot_score) { lbos::print("Player won!\n"); }
+			else { lbos::print("Bot won :(\n"); }
+			return 0;
+		}
 
 		if (keys.delta.up_arrow && player.pos.y > 0) player.apply_force({0, -PADDLE_ACCELERATION});
 		if (keys.delta.down_arrow && player.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.apply_force({0, PADDLE_ACCELERATION});
