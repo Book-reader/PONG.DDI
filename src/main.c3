@@ -58,7 +58,7 @@ fn isz _start() @extern("_start") @nostrip
 
 	Rect player = {PADDLE_WIDTH, PADDLE_HEIGHT, {PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
 	Rect bot = {PADDLE_WIDTH, PADDLE_HEIGHT, {SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
-	Rect ball = {BALL_SIZE, BALL_SIZE, {SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2}, {0, 0}, BALL_MAX_VELOCITY, 0};
+	Rect ball = {BALL_SIZE, BALL_SIZE, BALL_START_POS, {0, 0}, BALL_MAX_VELOCITY, 0};
 	ushort player_score = 0;
 	ushort bot_score = 0;
 
@@ -87,7 +87,7 @@ fn isz _start() @extern("_start") @nostrip
 		// lbos::printlns("FPS: ", (to_fp32(1000) / ((diff / 1000) / 1000)).to_string(&buf));
 		prev_time = time;
 		keys.update();
-		// TODO: this causes a compiler assert:
+		// TODO: this causes a compiler assert (because of xtoa?):
 		// lbos::printlns("Player velocity x: ", xtoa(&buf, player.velocity.x), "y: ", xtoa(&buf, player.velocity.y));
 
 		// lbos::printlns(itoa(&buf, player.velocity.y));
@@ -95,13 +95,19 @@ fn isz _start() @extern("_start") @nostrip
 		font::draw_text(itoa(&buf, player.velocity.y), 0, 0, fb, BLACK, clear_bg: true);
 		if (keys.delta.up_arrow && player.pos.y > 0) player.apply_force({0, -PADDLE_ACCELERATION});
 		if (keys.delta.down_arrow && player.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.apply_force({0, PADDLE_ACCELERATION});
-/*
-		if (ball.x > SCREEN_WIDTH  - SCREEN_HEIGHT / 3)
-		{
-			if (ball.y > bot.y + PADDLE_HEIGHT / 2 && bot.y + PADDLE_HEIGHT < SCREEN_HEIGHT) { bot.update(fb, BOT_COL, bot.x, min(bot.y, SCREEN_HEIGHT - PADDLE_HEIGHT - PADDLE_SPEED) + PADDLE_SPEED); }
-			else if (ball.y + BALL_SIZE < bot.y + PADDLE_HEIGHT / 2 && bot.y > 0) { bot.update(fb, BOT_COL, bot.x, max(bot.y, PADDLE_SPEED) - PADDLE_SPEED); }
-		}*/
 
+		if (ball.pos.x + BALL_SIZE == SCREEN_WIDTH)
+		{
+			player_score ++;
+			ball.set_pos(BALL_START_POS, fb, BALL_COL);
+			ball.velocity = BALL_START_VEL;
+		}
+		else if (ball.pos.x == 0)
+		{
+			bot_score ++;
+			ball.set_pos(BALL_START_POS, fb, BALL_COL);
+			ball.velocity = {-BALL_START_VEL.x, BALL_START_VEL.y};
+		}
 /*
 		ushort ball_x;
 		ushort ball_y;
@@ -186,6 +192,7 @@ fn isz _start() @extern("_start") @nostrip
 enum HorizonalDirection : const char {LEFT, RIGHT}
 enum VerticalDirection : const char {UP, DOWN}
 
+const short[<2>] BALL_START_POS = {SCREEN_WIDTH / 2 - BALL_SIZE / 2, SCREEN_HEIGHT / 2 - BALL_SIZE / 2};
 const BALL_SIZE = 6; // Probably should be divisible by 2
 // const BALL_SPEED = 3;
 const short[<2>] BALL_START_VEL = {-30, 30};
@@ -229,45 +236,48 @@ fn void Rect.apply_force(&self, short[<2>] force)
 	self.velocity += force;
 }
 
+fn void Rect.set_pos(&self, short[<2>] pos, FrameBuffer fb, Colour col)
+{
+	fb.fill_rect(...self.pos, self.width, self.height, BG_COLOUR, flush: false);
+	self.pos = pos;
+	fb.fill_rect(...self.pos, self.width, self.height, col, flush: false);
+}
+
 fn void Rect.update(&self, FrameBuffer fb, Colour col)
 {
-	// if (new_x != self.x || new_y != self.y)
-	{
-		short[<2>] orig_pos = self.pos;
-		self.pos += self.velocity / VELOCITY_FACTOR;
+	short[<2>] orig_pos = self.pos;
+	self.pos += self.velocity / VELOCITY_FACTOR;
 
-		if (self.pos.x + self.width > SCREEN_WIDTH)
-		{
-			self.velocity.x = -self.velocity.x;
-			self.pos.x = SCREEN_WIDTH - self.width;
-		}
-		else if (self.pos.x < 0)
-		{
-			self.velocity.x = -self.velocity.x;
-			self.pos.x = 0;
-		}
-		if (self.pos.y + self.height > SCREEN_HEIGHT)
-		{
-			self.velocity.y = -self.velocity.y;
-			self.pos.y = SCREEN_HEIGHT - self.height;
-		}
-		else if (self.pos.y < 0)
-		{
-			self.velocity.y = -self.velocity.y;
-			self.pos.y = 0;
-		}
-		// self.velocity = max((short[<2>]){0, 0}, self.velocity - self.air_resistance); 
-		if (self.air_resistance != 0)
-		{
-			self.velocity -= self.velocity / self.air_resistance;
-		}
-		fb.fill_rect(...orig_pos, self.width, self.height, BG_COLOUR, flush: false);
-		fb.fill_rect(...self.pos, self.width, self.height, col, flush: false);
-		// TODO: this is required because of an OS bug
-		// fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-		// fb.flush(orig_x, orig_y, self.width, self.height);
-		// fb.flush(new_x, new_y, self.width, self.height);
+	if (self.pos.x + self.width > SCREEN_WIDTH)
+	{
+		self.velocity.x = -self.velocity.x;
+		self.pos.x = SCREEN_WIDTH - self.width;
 	}
+	else if (self.pos.x < 0)
+	{
+		self.velocity.x = -self.velocity.x;
+		self.pos.x = 0;
+	}
+	if (self.pos.y + self.height > SCREEN_HEIGHT)
+	{
+		self.velocity.y = -self.velocity.y;
+		self.pos.y = SCREEN_HEIGHT - self.height;
+	}
+	else if (self.pos.y < 0)
+	{
+		self.velocity.y = -self.velocity.y;
+		self.pos.y = 0;
+	}
+	if (self.air_resistance != 0)
+	{
+		self.velocity -= self.velocity / self.air_resistance;
+	}
+	fb.fill_rect(...orig_pos, self.width, self.height, BG_COLOUR, flush: false);
+	fb.fill_rect(...self.pos, self.width, self.height, col, flush: false);
+	// TODO: this is required because of an OS bug
+	// fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	// fb.flush(orig_x, orig_y, self.width, self.height);
+	// fb.flush(new_x, new_y, self.width, self.height);
 }
 
 enum Intersection : char
