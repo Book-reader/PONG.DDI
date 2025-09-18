@@ -12,39 +12,33 @@ alias Fp32 = FixedPoint {uint, 21};
 
 fn isz _start() @extern("_start") @nostrip
 {
-	/*char[50] t;
-	KernelInfo kinfo;
-	lbos::get_kernel_info(&kinfo);
-	lbos::printlns("Total processes: ",     utoa(&t, kinfo.current_process_count));
-	lbos::printlns("Total memory blocks: ", utoa(&t, kinfo.total_mem_blocks));
-	lbos::printlns("Free memory blocks: ",  utoa(&t, kinfo.free_mem_blocks));*/
-	// This doesn't work because thread_allocator is tlocal
-	// allocator::thread_allocator = &VORE_ALLOCATOR;
-	// allocator::temp_base_allocator = &VORE_ALLOCATOR;
 	FrameBuffer fb = lbos::get_fb();
 	KeyState keys;
 	fb.reset();
 	lbos::print("Pong!\n");
-	lbos::print("use arrow keys to move up and down, q to quit\n");
-	lbos::print("\npress space to continue...\n");
+	lbos::print("use 'w' and 's' to move up and down (arrow keys for player 2), q to quit\n");
+	lbos::print("Press:\n");
+	lbos::print(" 1: one player\n");
+	lbos::print(" 2: two players\n");
+	lbos::print(" q: quit\n");
 
-/*	char[100] buf;
-	Fp32 a = fixed_point::from {uint, 21}(6);
-	printlns("6: ", a.to_string(&buf));
-
-	Fp32 b = fixed_point::from {uint, 21}(3);
-	printlns("6/3: ", (a / b).to_string(&buf));
-
-	a = fixed_point::from {uint, 21}(5);
-	printlns("5/3: ", (a / b).to_string(&buf));
-
-	a = fixed_point::from {uint, 21}(3);
-	printlns("3/3: ", (a / b).to_string(&buf));*/
-
-	do
+	bool two_player;
+	while OUTER: (true)
 	{
 		keys.update();
-	} while (!keys.gamma.space);
+		switch
+		{
+			case keys.alpha.key1:
+				two_player = false;
+				break OUTER;
+			case keys.alpha.key2:
+				two_player = true;
+				break OUTER;
+			case keys.beta.q:
+				lbos::print("Quitting :(\n");
+				return 0;
+		}
+	}
 
 	fb.reset();
 	bool running = true;
@@ -55,15 +49,15 @@ fn isz _start() @extern("_start") @nostrip
 	const Colour BOT_COL = RED;
 	const Colour BALL_COL = BLUE;
 
-	Rect player = {PADDLE_WIDTH, PADDLE_HEIGHT, {PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
-	Rect bot = {PADDLE_WIDTH, PADDLE_HEIGHT, {SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
+	Rect player_1 = {PADDLE_WIDTH, PADDLE_HEIGHT, {PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
+	Rect player_2 = {PADDLE_WIDTH, PADDLE_HEIGHT, {SCREEN_WIDTH - PADDLE_WIDTH - PADDLE_XOFF, PADDLE_START_Y}, {0, 0}, PADDLE_MAX_VELOCITY, PADDLE_AIR_RESISTANCE};
 	Rect ball = {BALL_SIZE, BALL_SIZE, BALL_START_POS, {0, 0}, BALL_MAX_VELOCITY, 0};
-	ushort player_score = 0;
-	ushort bot_score = 0;
+	ushort player_1_score = 0;
+	ushort player_2_score = 0;
 
 	fb.clear(BG_COLOUR);
-	player.update(fb, PLAYER_COL);
-	bot.update(fb, BOT_COL);
+	player_1.update(fb, PLAYER_COL);
+	player_2.update(fb, BOT_COL);
 	ball.update(fb, BALL_COL);
 	ball.apply_force(BALL_START_VEL);
 
@@ -81,8 +75,8 @@ fn isz _start() @extern("_start") @nostrip
 		Fp32 thousand = fixed_point::from(1000);
 		font::draw_text(/*"FPS: "*/ (thousand / ((diff / 1000) / 1000)).to_string(&buf), 20, 20, fb, RED, clear_bg: true);
 
-		font::draw_text(utoa(&buf, player_score), 10, 10, fb, BLACK, clear_bg: true);
-		font::draw_text(utoa(&buf, bot_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
+		font::draw_text(utoa(&buf, player_1_score), 10, 10, fb, BLACK, clear_bg: true);
+		font::draw_text(utoa(&buf, player_2_score), SCREEN_WIDTH - 40, 10, fb, BLACK, clear_bg: true);
 
 		fb.fill_rect(50, 0, 30, font::FONT_HEIGHT * 2, WHITE);
 		font::draw_text(itoa(&buf, ball.velocity.x), 50, 0, fb, BLACK, clear_bg: true);
@@ -94,44 +88,53 @@ fn isz _start() @extern("_start") @nostrip
 		prev_time = time;
 		keys.update();
 		// TODO: this causes a compiler assert (because of xtoa?):
-		// lbos::printlns("Player velocity x: ", xtoa(&buf, player.velocity.x), "y: ", xtoa(&buf, player.velocity.y));
+		// lbos::printlns("Player velocity x: ", xtoa(&buf, player_1.velocity.x), "y: ", xtoa(&buf, player_1.velocity.y));
 		if (keys.beta.q)
 		{
 			fb.reset();
-			if (player_score == bot_score) { lbos::print("It was a draw!\n"); }
-			else if (player_score > bot_score) { lbos::print("Player won!\n"); }
-			else { lbos::print("Bot won :(\n"); }
+			if (player_1_score == player_2_score) { lbos::print("It was a draw!\n"); }
+			else if (player_1_score > player_2_score) { lbos::print("Player 1 won!\n"); }
+			else if (!two_player) { lbos::print("Bot won :(\n"); }
+			else { lbos::print("Player 2 won!\n"); }
 			return 0;
 		}
 
-		if (keys.delta.up_arrow && player.pos.y > 0) player.apply_force({0, -PADDLE_ACCELERATION});
-		if (keys.delta.down_arrow && player.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player.apply_force({0, PADDLE_ACCELERATION});
+		if (keys.beta.w && player_1.pos.y > 0) player_1.apply_force({0, -PADDLE_ACCELERATION});
+		if (keys.beta.s && player_1.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player_1.apply_force({0, PADDLE_ACCELERATION});
 
-		if (ball.velocity.x > 0 && ball.pos.x > SCREEN_HEIGHT - (SCREEN_HEIGHT / 8) * 3)
+		if (two_player)
 		{
-			if (ball.pos.y > bot.pos.y + PADDLE_HEIGHT / 2) { bot.apply_force({0, PADDLE_ACCELERATION}); }
-			else if (ball.pos.y < bot.pos.y + PADDLE_HEIGHT / 2) { bot.apply_force({0, -PADDLE_ACCELERATION}); }
+			if (keys.delta.up_arrow && player_2.pos.y > 0) player_2.apply_force({0, -PADDLE_ACCELERATION});
+			if (keys.delta.down_arrow && player_2.pos.y + PADDLE_HEIGHT < SCREEN_HEIGHT) player_2.apply_force({0, PADDLE_ACCELERATION});
+		}
+		else
+		{
+			if (ball.velocity.x > 0 && ball.pos.x > SCREEN_HEIGHT - (SCREEN_HEIGHT / 8) * 3)
+			{
+				if (ball.pos.y > player_2.pos.y + PADDLE_HEIGHT / 2) { player_2.apply_force({0, PADDLE_ACCELERATION}); }
+				else if (ball.pos.y < player_2.pos.y + PADDLE_HEIGHT / 2) { player_2.apply_force({0, -PADDLE_ACCELERATION}); }
+			}
 		}
 
 		if (ball.pos.x + BALL_SIZE == SCREEN_WIDTH)
 		{
-			player_score ++;
+			player_1_score ++;
 			ball.set_pos(BALL_START_POS, fb, BALL_COL);
 			ball.velocity = BALL_START_VEL;
 		}
 		else if (ball.pos.x == 0)
 		{
-			bot_score ++;
+			player_2_score ++;
 			ball.set_pos(BALL_START_POS, fb, BALL_COL);
 			ball.velocity = {-BALL_START_VEL.x, BALL_START_VEL.y};
 		}
 
-		ball.handle_collides_any({player, bot}, fb, BALL_COL);
+		ball.handle_collides_any({player_1, player_2}, fb, BALL_COL);
 
-		// bot.set_pos({bot.pos.x, ball.pos.y - PADDLE_HEIGHT/2}, fb, BOT_COL);
+		// player_2.set_pos({player_2.pos.x, ball.pos.y - PADDLE_HEIGHT/2}, fb, BOT_COL);
 
-		player.update(fb, PLAYER_COL);
-		bot.update(fb, BOT_COL);
+		player_1.update(fb, PLAYER_COL);
+		player_2.update(fb, BOT_COL);
 		ball.update(fb, BALL_COL);
 		fb.flush(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
