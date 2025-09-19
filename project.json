@@ -45,12 +45,12 @@
 	// "strip-unused": false,
 	"single-module": true,
 	"emit-stdlib": false,
-	"panicfn": "example_c3::panic",
+	"panicfn": "pong::panic",
 	"link-args": ["-T", "linker.ld", "--emit-relocs", "-n"],
 	// "reloc": "PIE",
 	"reloc": "none",
 	"memory-env": "tiny",
 	// There is so little memory it OOMs with debug info lmao
 	"debug-info": "none",
-	"riscv-extensions": ["m", "c", "a"],
+	"riscv-extensions": ["m", "c", "a", "f"],
 }

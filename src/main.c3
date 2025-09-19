@@ -12,6 +12,17 @@ alias Fp32 = FixedPoint {uint, 21};
 
 fn isz _start() @extern("_start") @nostrip
 {
+	// Enable floats
+	asm
+	{
+		li $t0, 1 << 13;
+		csrrs $zero, $mstatus, $t0;
+	}
+	return main() @noinline;
+}
+
+fn isz main()
+{
 	FrameBuffer fb = lbos::get_fb();
 	KeyState keys;
 	fb.reset();
@@ -361,28 +372,49 @@ PanicFn panic = &default_panic;
 fn void default_panic(String message, String file, String function, uint line)
 {
 	// lbos::printlns("Panic: \"", message, "\" in \"", file, "\":\"", function, "\"");
-	$if $$PANIC_MSG:
-		lbos::printlns("PANIC!: ", message);
-	$else
-		lbos::println("PANIC!!!!");
-	$endif
+	lbos::printlns("PANIC!: ", message);
 	while (true);
 }
 
-fn void* memset(int* s, int c, usz n) @extern("memset") @nostrip
+fn void* memset(char* s, int c, usz n) @extern("memset") @nostrip
 {
-	s[:n] = c;
+	s[:n] = (char)c;
 	return s;
 }
 
 // module std::core::builtin;
 // import liblbos;
+fn String ftoa(char[] buf, float f/*, usz dp*/)
+{
+	String num = itoa(buf, (isz)f);
+	buf[num.len] = '.';
+	float decimal = f - $$trunc(f);
+	const DP = 3;
+	usz dec_int = (usz)(decimal * @pow(10, DP));
+	String dec = utoa(buf[num.len + 1..], dec_int);
+	return (String)buf[..num.len + 1 + dec.len];
+}
+
+macro pow(num, pow)
+{
+	var res = num;
+	for (usz i = 0; i < pow - 1; i++) res *= num;
+	return res;
+}
+
+macro @pow($num, $pow)
+{
+	var $res = $num;
+	$for var $i = 0; $i < $pow - 1; $i++:
+		$res *= $num;
+	$endfor
+	return $res;
+}
 
 // TODO: this breaks when inside the builtin module, probably a compiler bug
-macro String itoa(char[] buf, isz num)  @builtin => xtoa(buf, num);
-macro String utoa(char[] buf, usz num)  @builtin => xtoa(buf, num);
-macro String ltoa(char[] buf, long num) @builtin => xtoa(buf, num);
-module std::core::builtin;
+fn String itoa(char[] buf, isz num)  @builtin => xtoa(buf, num);
+fn String utoa(char[] buf, usz num)  @builtin => xtoa(buf, num);
+fn String ltoa(char[] buf, long num) @builtin => xtoa(buf, num);
 fn String itob(char[] buf, usz num) @builtin
 {
 	// static char[usz.sizeof * 8] buf;
@@ -394,6 +426,8 @@ fn String itob(char[] buf, usz num) @builtin
 
 	return (String)buf;
 }
+
+module std::core::builtin;
 
 macro xtoa(char[] buf, num) @builtin
 {
